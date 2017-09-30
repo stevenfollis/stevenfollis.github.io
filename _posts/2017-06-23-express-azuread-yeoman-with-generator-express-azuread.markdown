@@ -2,6 +2,7 @@
 layout: post
 title: Node + Express + AzureAD + Yeoman with generator-express-azuread
 date: 2017-06-23 09:45:10.000000000 -04:00
+comments: true
 ---
 Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent [PassportJS](http://passportjs.org/) middleware. The AzureAD team maintains an official Passport "strategy" called [passport-azure-ad](https://github.com/AzureAD/passport-azure-ad), making it easy to secure Node applications with Azure Active Directory.
 
