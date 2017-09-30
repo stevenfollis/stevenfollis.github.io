@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Containerizing an Access Database in a Windows Container - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2017/09/30/access-database-windows-container/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Containerizing an Access Database in a Windows Container | Steven Follis</title>
+<meta property="og:title" content="Containerizing an Access Database in a Windows Container" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Containerizing an Access Database in a Windows Container" />
+<meta property="og:description" content="Containerizing an Access Database in a Windows Container" />
+<link rel="canonical" href="http://localhost:4000/2017/09/30/access-database-windows-container/" />
+<meta property="og:url" content="http://localhost:4000/2017/09/30/access-database-windows-container/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-09-30T13:08:10-04:00" />
+<script type="application/ld+json">
+{"name":null,"description":"Containerizing an Access Database in a Windows Container","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2017/09/30/access-database-windows-container/","publisher":null,"image":null,"headline":"Containerizing an Access Database in a Windows Container","dateModified":"2017-09-30T13:08:10-04:00","datePublished":"2017-09-30T13:08:10-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/09/30/access-database-windows-container/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Containerizing an Access Database in a Windows Container</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on September 30, 2017</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<h1 id="containerizing-an-access-database-in-a-windows-container">Containerizing an Access Database in a Windows Container</h1>
+
+<p>At Docker we are seeing a cavalcade of customers finding value in containers not just for greenfield microservice applications, but also as a key to modernizing legacy applications. One recent conversation involved a question: can a legacy line of business application that uses an Access database be transitioned to a container? Having not touched an Access database in many years, I set out to find an answer.</p>
+
+<h2 id="the-database">The Database</h2>
+
+<p>Needing a sample database that would be representative of an older application, I fired up Access 2017 and created a new database from the Northwind Traders template. This sample database started up as a <code class="highlighter-rouge">.accdb</code> file, the file format that Access moved to back in 2007. I wanted to lean more oldschool, so attempted an export to the older <code class="highlighter-rouge">.mdb</code> format. Unfortunately, Access refused the operation, citing the new features in-use that were not backwards compatible to previous formats.</p>
+
+<p>With Northwind appearing to be a dead end, I looked online for a second sample database known to SQL aficionados as AdventureWorks. <a href="https://adventureworksaccess.codeplex.com/">Codeplex</a> had a copy, and although it downloaded as a <code class="highlighter-rouge">.aacdb</code>, Access easily exported it as a <code class="highlighter-rouge">.mdb</code> by using the <strong>Access 2000 Database</strong> option.</p>
+
+<p><img src="/content/images/2017/09/image001.png" alt="image" /></p>
+
+<blockquote>
+  <p>The .mdb file size is over 100MB, which makes GitHub will barf. To shave off some space, I trimmed several rows out of the <code class="highlighter-rouge">Sales_SalesOrderDetail</code> table</p>
+</blockquote>
+
+<h2 id="the-web-application">The Web Application</h2>
+
+<p>With a database secured, it was time to stand up a web application to interface with the data. My goal was to create a proof of concept web application that communicate with the database and displays data via a browser.</p>
+
+<p>Firing up Visual Studio 2017 Community Edition, I created a solution based on the web application template. Wanting to be as legacy-esque as possible, I set the .NET version to a stately 2.0.</p>
+
+<p><img src="/content/images/2017/09/image002.png" alt="image" /></p>
+
+<p>Once the solution provisioned, I created a <code class="highlighter-rouge">default.aspx</code> web form and an <code class="highlighter-rouge">App_Data</code> folder. The <code class="highlighter-rouge">AdventureWorks.mdb</code> file went into App_Data, and I scaffolded out a simple page in the aspx file by importing the Bootstrap library and adding a heading.</p>
+
+<p><img src="/content/images/2017/09/image003.png" alt="image" /></p>
+
+<p>Now came the fun part: plumbing the database into the web app. The first path taken invovled opening the Server Explorer and using the connection wizard to setup a connnection to an Access DB. This turns out to use <a href="https://en.wikipedia.org/wiki/Microsoft_Jet_Database_Engine">JET</a>, which was long superceed by ACE. Another downside to using JET was that while it worked, I had to install an Office Distributable package. This package was an <code class="highlighter-rouge">.exe</code> wizard with a UI, and I was nervous about getting it to run in headless container environment (where’s an MSI when you need one?) The customer was also using ODBC today, so I stepped back and re-implemented the connection via an ODBC connector.</p>
+
+<p>ODBC has several ways of configuration, and the Visual Studio wizard took me down a path of using a system-level DSN. This DSN securely maps the location of the database file and ODBC driver settings into a credential that my application can use. After setting the world’s smallest <code class="highlighter-rouge">ConnectionString</code> in <code class="highlighter-rouge">web.config</code> I was off to the races. Running locally, I was able to see a table of data pulled from the Access database file.</p>
+
+<p>With my simple application working on my local laptop it was time to container-ize.</p>
+
+<h2 id="the-container">The Container</h2>
+
+<p>Creating a container involves crafting a Dockerfile. As a base image, <code class="highlighter-rouge">microsoft/windowsservernano</code> is a lighter weight base, however legacy applications rely on a myriad of features and capabilities that are simply not possible in nano. For this app, I instead turned to <code class="highlighter-rouge">microsoft/aspnet:4.6.2</code>, based on the larger and more robust Windows Server Core.</p>
+
+<blockquote>
+  <p>The <a href="https://docs.microsoft.com/en-us/dotnet/core/docker/visual-studio-tools-for-docker">Visual Studio Tools for Docker</a> are terrific for setting a debugging environment within VS for testing containers. However, I find it overly complex for simpler projects, and the heavy use of build time arguments that are necessary for debugging make greatly increases the complexity of moving the project into a CI/CD pipeline. Instead of auto-generating the Dockerfile via the Tools, I instead opted to handcraft my own</p>
+</blockquote>
+
+<p>With the <code class="highlighter-rouge">FROM</code> statement ready to go, it was time to configure the inside of the container to match my local environment. This requires a few steps:</p>
+
+<ol>
+  <li>
+    <p>Configure the ODBC DSN with the local of the <code class="highlighter-rouge">.mdb</code> file and driver. This was accomplished with a bit of PowerShell, and was far easier than I initally expected.</p>
+  </li>
+  <li>
+    <p>Insert my VS solution code into the pre-determined IIS location of <code class="highlighter-rouge">C:\inetpub\wwwroot</code> as <a href="https://hub.docker.com/r/microsoft/aspnet/">instruced</a> by the aspnet image.</p>
+  </li>
+</ol>
+
+<p>However, after adding the steps, building the image, and starting a container, I was met with an ugly error screen.</p>
+
+<p>StackOverflow informed me that this was likely due to a mismatch in running a 64-bit application with the 32-bit ODBC driver. When I initially created the application, VS by default used the 32-bit version of IIS Express (hence no issue), whereas the aspnet image was defaulting to using 64-bit IIS. Back in VS, I set it to use 64-bit IIS Express, and confirmed that I saw the same error - this issue was realted to 32 vs. 64 bit settings.</p>
+
+<p>The solution was to adjust the IIS Application Pool within the container to run a 32-bit application. This again was a snippet of PowerShell, which enabled the feature. After a quick re-build and re-creation of a container, I was pleased to see the sample application running as expected.</p>
+
+<h2 id="the-wrap-up">The Wrap Up</h2>
+
+<p>This [incredibly] simple application imparted several nuggets of wisdom related to the containerization of legacy applications.</p>
+
+<p>First, the “hello world” examples are nice for a quick demonstration, but real-world apps are going to take some finese and adjustments to the base images. Be prepared to track down PowerShell commandlets and overloads that may not be immediately obvious.</p>
+
+<p>Second, there are many ways to skin a cat and those ways have likely evolved between when the app was created and today. There were 3+ methods of talking to an Access database, each with varying pros/cons, histories, and present-day supportability concerns.</p>
+
+<p>Finally, erring on the side of configuration via PowerShell rather than an MSI or other installing simplifies the creation and maintenance of images. This will not always be an option, but I greatly preferred PS to touching a ~10 year old installer .exe.</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/" data-toggle="tooltip" data-placement="top" title="Node + Express + AzureAD + Yeoman with generator-express-azuread">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+<div id="disqus_thread" class="container"></div>
+<script>
+
+    /**
+    *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+    *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+
+    var disqus_config = function () {
+        this.page.url = "http://stevenfollis.com/2017/09/30/access-database-windows-container/";  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = "Containerizing an Access Database in a Windows Container"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+
+    (function () { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://stevenfollis.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the
+    <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-16938500-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+</body>
+
+</html>
