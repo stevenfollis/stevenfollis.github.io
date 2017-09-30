@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Setting up a NodeJS Slack Bot on Azure Web Apps - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Setting up a NodeJS Slack Bot on Azure Web Apps | Steven Follis</title>
+<meta property="og:title" content="Setting up a NodeJS Slack Bot on Azure Web Apps" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="I’m new to this wide world of Slack, but its dead simple design is already changing how I collaborate. Some buddies stood up a team for talking through side projects, and it’s been a terrific resource." />
+<meta property="og:description" content="I’m new to this wide world of Slack, but its dead simple design is already changing how I collaborate. Some buddies stood up a team for talking through side projects, and it’s been a terrific resource." />
+<link rel="canonical" href="http://localhost:4000/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/" />
+<meta property="og:url" content="http://localhost:4000/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-04-04T11:25:31-04:00" />
+<script type="application/ld+json">
+{"name":null,"description":"I’m new to this wide world of Slack, but its dead simple design is already changing how I collaborate. Some buddies stood up a team for talking through side projects, and it’s been a terrific resource.","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/","publisher":null,"image":null,"headline":"Setting up a NodeJS Slack Bot on Azure Web Apps","dateModified":"2015-04-04T11:25:31-04:00","datePublished":"2015-04-04T11:25:31-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Setting up a NodeJS Slack Bot on Azure Web Apps</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on April 4, 2015</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<p>I’m new to this wide world of <a href="https://slack.com/">Slack</a>, but its dead simple design is already changing how I collaborate.  Some buddies stood up a team for talking through side projects, and it’s been a terrific resource.</p>
+
+<p>Except for our chum, Harrison.  Harrison is not as on the bleeding edge of technology as some folks, and thus is not participating in our team.  We miss Harrison.  Therefore, when I saw that Slack supported bots, my first thought was: “gotta make a Harrison Bot.”</p>
+
+<iframe width="420" height="315" src="https://www.youtube.com/embed/HoLs0V8T5AA" frameborder="0" allowfullscreen=""></iframe>
+
+<p>To get this wired up will take a few steps:</p>
+<ol>
+  <li>Create the NodeJS application</li>
+  <li>Deploy the application to a new Azure Web App</li>
+  <li>Setup Slack to use the app</li>
+</ol>
+
+<h1 id="creating-the-nodejs-bot">Creating the NodeJS bot</h1>
+<p>There is a stellar guide over at <a href="http://www.sitepoint.com/getting-started-slack-bots/">SitePoint</a> that goes into detail for creating the bot.  I used the first half of the guide, covering Outgoing WebHooks Integration, for the bot creation.</p>
+
+<p>The guide covers returning a simple “Hello username”, but I wnated to take it a step further.  When the trigger word “Harrisonbot” is used, I’d like the bot to respond with one of several canned responses.</p>
+
+<p>I defined a “responses.json” file to hold an array of goofy responses for Harrisonbot to say.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[
+  "I can't see above the counter at Subway. I never know what they're making me.",
+  "I've always thought that Barry Obama has great calves.",
+  "Nicholas Sparks is the beneficiary in my living will.",
+  "Who's your favorite supreme court justice? Mine's Mister T.",
+  "My favorite drink as a child was Rich Chocolate Ovaltine and Bourbon. Neat."
+]
+</code></pre></div></div>
+
+<p>Splitting out the array into a separate file should make it easier for people to submit pull requests, extending the variety of responses.</p>
+
+<p>I then extended the SitePoint tutorial’s <code class="highlighter-rouge">hellobot.js</code> file to return a random response.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>var _ = require('lodash');
+var responses = require('./responses');
+
+module.exports = function (request, response, next) {
+
+  // store username
+  var userName = request.body.user_name;
+
+  // create a payload to send back
+  var botPaylod = {
+	text: _.sample(responses) // use lodash's sample function to grab a random string from the responses array
+  }
+
+  // avoid an infinite loop
+  if (userName !== 'slackbot') {
+	return response.status(200).json(botPaylod);
+  }
+  else {
+	return reponse.status(200).end();
+  }
+
+}
+</code></pre></div></div>
+
+<p>The <a href="https://lodash.com">Lodash</a> library is chalked full of helper functions to make JavaScript easier to use.  It happens to have a great <a href="https://lodash.com/docs#sample">function for grabbing a random item in a collection</a> that I used to make the code simpler to read.</p>
+
+<h1 id="deploying-to-azure">Deploying to Azure</h1>
+<p>The SitePoint guide deployed their bot to Heroku, but what if we want to utilize Azure Web Apps?  Fortunately, the setup is not too different.</p>
+
+<p>First, we’ll create an Azure Web App.  From the <a href="http://portal.azure.com">Azure Portal</a>, hit the “+” button, then from the “Web + Mobile” section hit “Web app”.
+<img src="/content/images/2015/04/Screenshot_040415_121115_PM.jpg" alt="Create new Web App" /></p>
+
+<p>Give it a name/service plan	/resource group and hit “Create”. Voila! Instant web app.</p>
+
+<p>Next, we can setup continuous integration between the web app and our GitHub repository.  Browse to your new web app in the Azure Portal, and scroll down to the “Deployment” section</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_125732_PM.jpg" alt="Web App GitHub Integration" /></p>
+
+<p>Select the “Choose Source” button and then the “GitHub” link.<br />
+The Portal will have you sign into your GitHub account, where you can then select a repo and a branch.</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_010001_PM.jpg" alt="Repo Selection" /></p>
+
+<p>Hit OK and a deployment will be kicked off.  Anytime the GitHub repo is updated, a deployment will be kicked off for the Azure Web App, easily keeping your app in sync.</p>
+
+<p>Navigating to the Azure Web App’s URL we can see our simple test route for all GET requests to “/” (from app.js).</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_010244_PM.jpg" alt="Web App Response" /></p>
+
+<p>With a web app now created and deployed to a public URL, we’re now ready for the Slack integration.</p>
+
+<h1 id="configuring-slack-to-use-the-azure-web-app">Configuring Slack to use the Azure Web App</h1>
+<p>Navigate to <a href="http://slack.com/services">http://slack.com/services</a> and sign in to your team.  You should be greeted with a screen full of potential integration options.</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_010600_PM.jpg" alt="Slack Integration Options" /></p>
+
+<p>We’re after the <strong>Outgoing WebHooks</strong> option.  This integration works by identifying when trigger words are used, and then kicking off a POST request to a specified web service endpoint.  We’ll be pointing this at our Azure Web App, so click the green “Add” button to the right of it to get rolling.</p>
+
+<p>The important piece of the configuration screen is the Integration Settings section.  Here we can target only certain Slack channels, define our trigger word(s), and point the URL of our app.  In our App.js we defined the endpoint as “/hello” to kickoff our hellobot functionality, so we use that endpoint.</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_010949_PM.jpg" alt="Slack integration configuration" /></p>
+
+<p>Also be sure to set a description, name, and icon for the bot.</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_011155_PM.jpg" alt="Slack integration configuration icon" /></p>
+
+<p>As soon as we “Save Settings” the bot is active!  Head over to a channel give it a whirl.</p>
+
+<p><img src="/content/images/2015/04/Screenshot_040415_011327_PM.jpg" alt="Harrisonbot response" /></p>
+
+<h1 id="wrap-up">Wrap up</h1>
+<p>Bots are a great way to add features and functionality to Slack conversations.  NodeJS makes the bot logic straightforward to setup, and pairing with Azure Web Apps makes deployment a snap.</p>
+
+<p>The actual code for Harrisonbot can be <a href="https://github.com/stevenfollis/HarrisonBot">found in GitHub</a>.  Thanks!</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2015/03/10/using-application-insights-with-angularjs-applications/" data-toggle="tooltip" data-placement="top" title="Integrating Application Insights with AngularJS Apps via Angulartics">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/2015/04/23/using-css-regions-in-visual-studio/" data-toggle="tooltip" data-placement="top" title="Using CSS Regions in Visual Studio">Next Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+
+
+</body>
+
+</html>

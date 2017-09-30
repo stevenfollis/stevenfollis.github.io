@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS) - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS) | Steven Follis</title>
+<meta property="og:title" content="Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="The concept of Continuous Integration makes developing any piece of software infinitely more efficient and convenient. At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?" />
+<meta property="og:description" content="The concept of Continuous Integration makes developing any piece of software infinitely more efficient and convenient. At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?" />
+<link rel="canonical" href="http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/" />
+<meta property="og:url" content="http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-12-12T06:07:34-05:00" />
+<script type="application/ld+json">
+{"name":null,"description":"The concept of Continuous Integration makes developing any piece of software infinitely more efficient and convenient. At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/","publisher":null,"image":null,"headline":"Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)","dateModified":"2016-12-12T06:07:34-05:00","datePublished":"2016-12-12T06:07:34-05:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on December 12, 2016</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<p>The concept of <a href="https://en.wikipedia.org/wiki/Continuous_integration">Continuous Integration</a> makes developing any piece of software infinitely more efficient and convenient.  At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?</p>
+
+<p>This was the question that arose on a recent project that included an ARM Template that needed to be deployed in multiple regions.  Regular changes were being made to the template file that were committed to the repository without any real checks - it took a full deployment to determine if the template would successfully deploy or fail miserably. To smooth out this process, we took the ARM Template and used a <a href="https://www.visualstudio.com/en-us/docs/release/author-release-definition/more-release-definition">Visual Studio Team Services Release Definition</a> to automate the validation of a template in a myriad of regions.</p>
+
+<p>We began by authoring a PowerShell script that would take an ARM Template and loop through all regions worldwide to create Resource Groups and deployments.  Doing a full deployment in every region worldwide is expensive, time consuming, and may hit subscriptions limits for resources such as VM cores.  Instead, we can send a template to ARM’s <a href="https://docs.microsoft.com/en-us/rest/api/resources/deployments#Deployments_Validate">Validate Endpoint</a>.  This endpoint checks the syntax of a template file without doing an actual deployment, and determines if the file will be accepted by the Resource Manager during a deployment.  Using this endpoint is a cheaper, easier way to get a good idea of a template’s deploy-ability, and was a better option than full on deployments.</p>
+
+<p>Delightfully, the out of the box Azure Resource Group Deployment task within VSTS already had the capability to do a validation only deployment, meaning the in-flight PowerShell script was scrapped.</p>
+
+<p><img src="/content/images/2016/12/image001.png" alt="image" /></p>
+
+<p>First, we need a new Release Definition. From there I created an <strong>Environment</strong> for each of the 15 Azure Regions that I wanted to test the template against. I’d used 2-5 Environments before, but VSTS had no issue with 15 disparate Environments.  Within each of these Environments two tasks were created:</p>
+
+<ul>
+  <li>
+    <p>The first Azure Resource Group Deployment task takes the specified ARM Template and executes a <strong>Validation Only</strong> deployment. Since a Resource Group is needed, this step automatically generates a RG as part of the task</p>
+  </li>
+  <li>
+    <p>The second Azure Resource Group Deployment tasks deletes the Resource Group that is created in the first step</p>
+  </li>
+</ul>
+
+<p><img src="/content/images/2016/12/image002-1.png" alt="image" /></p>
+
+<blockquote>
+  <p>Note that under <strong>Control Options</strong> we’ve checked the box for <strong>Continue on error</strong>. This will ensure that even if a template fails validation that the release will continue to the cleanup task. Else our subscription will be littered with empty resource groups</p>
+</blockquote>
+
+<p>By default the regions will execute serially one after another. This is fine if we’re using the convenient Hosted Agent within VSTS to run our builds up in the cloud, however we may have a pool of servers with Build Agents installed. In this case we’d like to execute validations in parallel.  Go ahead and open the <strong>Deployment conditions</strong> for each Environment.</p>
+
+<p><img src="/content/images/2016/12/image003.png" alt="image" /></p>
+
+<p>Next, adjust the Trigger to <strong>After release creation</strong>. This will allow multiple environments to run at the same time, making the process far quicker.</p>
+
+<p><img src="/content/images/2016/12/image004.png" alt="image" /></p>
+
+<p>With our Release Definition completed with an Environment for each Azure Region, create a New Release. VSTS will run the tasks and provide a nice dashboard.</p>
+
+<p><img src="/content/images/2016/12/image005.png" alt="image" /></p>
+
+<p>I can see from the Deployment Status column that there was an issue with Brazil South. At this time the task does not provide verbose feedback on why the template failed to validate, but I now have enough information to focus my debugging efforts.</p>
+
+<p>The Validate endpoint does not catch 100% of issues. We ran into a scenario where a template validated, but a particular VM size was unavailable in the given region. There is no real substitute for a real deployment to ensure a template functions 100% properly, however this approach of the Validate endpoint catches a large number of issues before a deployment even occurs.</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2016/11/21/managing-arm-templates-with-csv-parameters/" data-toggle="tooltip" data-placement="top" title="Managing Azure Resource Manager (ARM) Template deployments with CSV files">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io/" data-toggle="tooltip" data-placement="top" title="Monitoring an Azure IoT Gateway with a Socket.io Module">Next Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+
+
+</body>
+
+</html>

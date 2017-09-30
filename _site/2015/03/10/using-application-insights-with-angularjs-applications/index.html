@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Integrating Application Insights with AngularJS Apps via Angulartics - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2015/03/10/using-application-insights-with-angularjs-applications/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Integrating Application Insights with AngularJS Apps via Angulartics | Steven Follis</title>
+<meta property="og:title" content="Integrating Application Insights with AngularJS Apps via Angulartics" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Who is using your web application? Where are they from? What devices are they using? These kinds of questions have long been essential to understanding your audience and informing decisions with cold hard data." />
+<meta property="og:description" content="Who is using your web application? Where are they from? What devices are they using? These kinds of questions have long been essential to understanding your audience and informing decisions with cold hard data." />
+<link rel="canonical" href="http://localhost:4000/2015/03/10/using-application-insights-with-angularjs-applications/" />
+<meta property="og:url" content="http://localhost:4000/2015/03/10/using-application-insights-with-angularjs-applications/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-03-10T19:57:07-04:00" />
+<script type="application/ld+json">
+{"name":null,"description":"Who is using your web application? Where are they from? What devices are they using? These kinds of questions have long been essential to understanding your audience and informing decisions with cold hard data.","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2015/03/10/using-application-insights-with-angularjs-applications/","publisher":null,"image":null,"headline":"Integrating Application Insights with AngularJS Apps via Angulartics","dateModified":"2015-03-10T19:57:07-04:00","datePublished":"2015-03-10T19:57:07-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2015/03/10/using-application-insights-with-angularjs-applications/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Integrating Application Insights with AngularJS Apps via Angulartics</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on March 10, 2015</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<p>Who is using your web application?  Where are they from?  What devices are they using?  These kinds of  questions have long been essential to understanding your audience and informing decisions with cold hard data.</p>
+
+<p>Traditionally, we’d simply toss a block of Google Analytics into a page template or masterpage and voila! Instant analytics.  Each time a user navigated to a new page, we had pretty graphs and charts showing us behavior data and general attributes.</p>
+
+<p>This changes in the Single Page Application (SPA) world.  Instead of the user requesting and the server serving multiple physical pages, only one page is ever transferred.  All subsequent “pages” are actually application “routes” showing different views.  How do we log behavior when there aren’t multiple postbacks to and from the server?</p>
+
+<h1 id="application-insights">Application Insights</h1>
+<p>“<a href="http://azure.microsoft.com/en-us/services/application-insights">Application Insights</a>” is a service that has been a part of Visual Studio Online for a while, but recently moved into the <a href="http://porta.azure.com">Azure Portal</a>.  At first glance, it appears very similar to the Google Analytics features that have been used for years.  You get all the familiar data around page visits, sessions, unique users, browser stats, demographics, etc. included in pretty charts.</p>
+
+<p>However, the real power of App Insights is that it combines client side scripts with a server side component.  This server side component keeps tabs on what’s happening under the hood of your app, alerting you to any shenanigans that impact app performance or availability.  In conjuction with the client side script it’s a holistic way to track all sorts of facets of your app.</p>
+
+<p>Today’s focus is on the client side, but couldn’t resist plugging the rest of the App Insights platform.  Multiple backends are supported, including <a href="https://github.com/Microsoft/AppInsights-node.js">NodeJS</a>, <a href="https://github.com/Microsoft/AppInsights-Ruby">Ruby</a>, <a href="https://github.com/Microsoft/AppInsights-PHP">PHP</a>, <a href="http://azure.microsoft.com/en-us/documentation/articles/app-insights-java-get-started/">Java</a>, <a href="https://github.com/Microsoft/AppInsights-Python">Python</a>, and of course <a href="http://azure.microsoft.com/en-us/documentation/articles/app-insights-start-monitoring-app-health-usage">.NET</a>.</p>
+
+<iframe src="//channel9.msdn.com/Shows/Edge/App-Insights-Performance-Monitoring/player" width="960" height="540" allowfullscreen="" frameborder="0"></iframe>
+
+<h1 id="the-plan">The Plan</h1>
+<ul>
+  <li>Setup a new Application Insights Instance via the Azure Portal</li>
+  <li>Install the Apps Insight JavaScript file</li>
+  <li>Install Angulartics core script</li>
+  <li>Install the Angulartics-Azure script</li>
+  <li>Include both scripts into your App.js file</li>
+  <li>Use Angulartics’ special directives to log user event behavior</li>
+</ul>
+
+<h1 id="configuring-app-insights">Configuring App Insights</h1>
+<ol>
+  <li>
+    <p>Fire up the <a href="http://portal.azure.com">Azure Portal</a> and sign on in.<br />
+<img src="/content/images/2015/04/Screenshot_040115_120111_PM.jpg" alt="Azure Portal Home Page" /></p>
+  </li>
+  <li>
+    <p>In the bottom left hand corner, hit the “+” sign and select “Developer Services”, then select “Application Insights”.
+<img src="/content/images/2015/04/Screenshot_040115_120821_PM.jpg" alt="New Flyout" /></p>
+  </li>
+  <li>
+    <p>Fill out a name, resource group, and subscription, and click OK to finish creating the App Insights instance.</p>
+  </li>
+  <li>
+    <p>If you’re not automatically taken to your instance’s blade, hit the “Browse” button on the left hand nav bar and locate the name you just created.
+<img src="/content/images/2015/04/Screenshot_040115_021659_PM.jpg" alt="Browse Image" /></p>
+  </li>
+  <li>
+    <p>Inside this blade is a little cloud icon labeled “Quick Start”. Selecting it opens up the Quick Start panel, where you can select “Get code to monitor my web pages.”  This also opens up a new blade, where a script tag resides.  It’s everything you need to get going, complete with a bow on top. 
+<img src="/content/images/2015/04/Screenshot_040115_022154_PM.jpg" alt="AI Blade" /></p>
+  </li>
+  <li>
+    <p>Copy/paste this code right before the closing <code class="highlighter-rouge">&lt;/head&gt;</code> tag on your Angular’s HTML shell page.  The “secret sauce” is in the <code class="highlighter-rouge">instrumentationKey</code> variable, which wires you up to the correct instance of App Insights.</p>
+
+    <p><code class="highlighter-rouge">&lt;!--
+To collect end-user usage analytics about your application,
+insert the following script into each page you want to track.
+Place this code immediately before the closing &lt;/head&gt; tag,
+and before any other scripts. Your first data will appear
+automatically in just a few seconds.
+--&gt;
+</code>
+<code class="highlighter-rouge">&lt;script type="text/javascript"&gt;
+    var appInsights=window.appInsights||function(config){
+		function s(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},r=document,f=window,e="script",o=r.createElement(e),i,u;for(o.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",r.getElementsByTagName(e)[0].parentNode.appendChild(o),t.cookie=r.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)s("track"+i.pop());return config.disableExceptionTracking||(i="onerror",s("_"+i),u=f[i],f[i]=function(config,r,f,e,o){var s=u&amp;&amp;u(config,r,f,e,o);return s!==!0&amp;&amp;t["_"+i](config,r,f,e,o),s}),t
+    }({
+		instrumentationKey:"00000000-0000-0000-0000-000000000000"
+    });</code></p>
+
+    <p><code class="highlighter-rouge">window.appInsights=appInsights;
+//appInsights.trackPageView(); /* Will be handled via Angulartics */
+&lt;/script&gt;</code></p>
+  </li>
+</ol>
+
+<p>You’re now broadcasting user data!  Hurray JavaScript.  Notice that near the end of the block, a line has been commented out.  This is because Angulartics will handle that bit here momentarily.</p>
+
+<h1 id="installing-angulartics">Installing Angulartics</h1>
+<p>Now that we have App Insights, how do we get that into an AngularJS single page application?  We <em>could</em> roll up our sleeves and write a custom Angular directive to handle the integration, but chances are someone’s already done that legwork.</p>
+
+<p>The <a href="http://luisfarzati.github.io/angulartics/">Angulartics</a> project aims to be the missing piece for connecting SPA’s with analytics providers.  It abstracts the logic necessary to record page views and user interactions.</p>
+
+<p>At the time of writing, 12 plugins have been made for Angulartics.  Unforunately, Application Insights is not one of them.  I saw this and set about forking the repo to add such functionality, when discovering <a href="https://github.com/luisfarzati/angulartics/pull/290">a pull request already existed for App Insights</a>.  Presumably this will soon be accepted and officially in the repo, but that doesn’t stop us from getting functionality today!</p>
+
+<p>Angulartics’ <a href="http://luisfarzati.github.io/angulartics/#/getting-started">Getting Started</a> section outlines first steps.  Download the Angulartics base file, and include it in your app.js module injections.  The second step is less documented: copy the code from the pull request into a new “angulartics-azure.js” and also add “angulartics.azure” to your app.js file.</p>
+
+<p>Your “angulartics-azure.js” should look like:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * @license Angulartics v0.17.2
+ * (c) 2013 Luis Farzati http://luisfarzati.github.io/angulartics
+ * Microsoft Azure Application Insights plugin contributed by https://github.com/anthonychu
+ * License: MIT
+ */
+(function (angular) {
+	'use strict';
+
+	/**
+	 * @ngdoc overview
+	 * @name angulartics.azure
+	 * Enables analytics support for Microsoft Azure Application Insights (http://azure.microsoft.com/en-us/services/application-insights/)
+	 */
+	angular.module('angulartics.azure', ['angulartics'])
+	.config(['$analyticsProvider', function ($analyticsProvider) {
+
+		$analyticsProvider.registerPageTrack(function (path) {
+			appInsights.trackPageView(path);
+		});
+
+		/**
+		 * Numeric properties are sent as metric (measurement) properties.
+		 * Everything else is sent as normal properties.
+		 */
+		$analyticsProvider.registerEventTrack(function (eventName, eventProperties) {
+			var properties = {};
+			var measurements = {};
+
+			angular.forEach(eventProperties, function (value, key) {
+				if (isNumeric(value)) {
+					measurements[key] = parseFloat(value);
+				} else {
+					properties[key] = value;
+				}
+			});
+
+			appInsights.trackEvent(eventName, properties, measurements);
+		});
+
+	}]);
+
+	function isNumeric(n) {
+		return !isNaN(parseFloat(n)) &amp;&amp; isFinite(n);
+	}
+})(angular);
+</code></pre></div></div>
+
+<p>Hopefully the pull request purgatory that this code is sitting in will be cleared up soon, and we can pull in the file in a more normal method.</p>
+
+<p>With Angulartics + Angulartics Azure up and running, we should now be receiving page view data back in App Insights.  Click around your app, goign through different routes and check in AI in ~5 minutes to start seeing data:
+<img src="/content/images/2015/04/Screenshot_040115_050523_PM.jpg" alt="AI Data Coming In" /></p>
+
+<p>AI also shows us entry and exit pages, aka where users first start in our apps and what page they are on when they leave.</p>
+
+<h1 id="configuring-events">Configuring Events</h1>
+<p>We get routing page views out of the gate, but how about more custom events?  Say we have a navigation bar at the top of our page:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;ul class="nav navbar-nav"&gt;
+	&lt;li&gt;&lt;a href="#work"&gt;Work&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#capabilties"&gt;Capabilities&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#about-us"&gt;About Us&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#contact"&gt;Contact&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</code></pre></div></div>
+
+<p>Nothing fancy, just a Bootstrap 3 nav component.  We want to track when users click navigation items, to tell where on the page users spend their time.  Angulartics gives us two directives to add:</p>
+
+<p><code class="highlighter-rouge">analytics-on="click"</code> describes the type of event.  Typically we’ll be looking for user clicks.</p>
+
+<p><code class="highlighter-rouge">analytics-event="EventName"</code> gives a name to the event for tracking purposes.  This string is how we’ll distinguish events from each other, so make sure it’s easy to read.  I like to use a period to separate types of events into categories, for example “Navigation.Work” would describe the event when the user clicks our first link.</p>
+
+<p>Updating our navbar example with these directives gives us:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;ul class="nav navbar-nav"&gt;
+	&lt;li&gt;&lt;a href="#work" analytics-on="click" analytics-event="Navigation.Work"&gt;Work&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#capabilties" analytics-on="click" analytics-event="Navigation.Capabilities"&gt;Capabilities&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#about-ux" analytics-on="click" analytics-event="Navigation.About"&gt;About UX&lt;/a&gt;&lt;/li&gt;
+	&lt;li&gt;&lt;a href="#contact" analytics-on="click" analytics-event="Navigation.Contact"&gt;Contact&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</code></pre></div></div>
+
+<p>Now, anytime a user clicks a navigation link we can capture the event name.  Looking at the data, perhaps we notice that the About section is getting significantly more traffic than the other pages.  We could then potentially move it up on the page, or refine the content to make sure visitors get the information that they need.</p>
+
+<p>Back in App Insights, we can already see data trickling in!
+<img src="/content/images/2015/04/Screenshot_040115_052137_PM.jpg" alt="Event Data" /></p>
+
+<p>Be sure to check out <a href="http://luisfarzati.github.io/angulartics/#/event-tracking">Angulartics’ documentation on Event tracking</a> for further details.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+<p>We’ve taken an AngularJS application and hooked in Application Insights via the Angulartics plugin.  We can now more accurately track and understand visitors to our application and make better decisions on enhancements, updates, etc.</p>
+
+<p>Hope it’s been helpful!</p>
+
+<p>Thanks!
+Steven</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2015/03/07/about/" data-toggle="tooltip" data-placement="top" title="About">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/2015/04/04/setting-up-a-slack-bot-on-azure-web-apps/" data-toggle="tooltip" data-placement="top" title="Setting up a NodeJS Slack Bot on Azure Web Apps">Next Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+
+
+</body>
+
+</html>

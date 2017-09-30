@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Monitoring Audit Logs in Slack with Event Hubs + Azure Functions - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Monitoring Audit Logs in Slack with Event Hubs + Azure Functions | Steven Follis</title>
+<meta property="og:title" content="Monitoring Audit Logs in Slack with Event Hubs + Azure Functions" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Thoughts on technology by Steven Follis" />
+<meta property="og:description" content="Thoughts on technology by Steven Follis" />
+<link rel="canonical" href="http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/" />
+<meta property="og:url" content="http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-05-19T15:45:35-04:00" />
+<script type="application/ld+json">
+{"name":null,"description":"Thoughts on technology by Steven Follis","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/","publisher":null,"image":null,"headline":"Monitoring Audit Logs in Slack with Event Hubs + Azure Functions","dateModified":"2016-05-19T15:45:35-04:00","datePublished":"2016-05-19T15:45:35-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Monitoring Audit Logs in Slack with Event Hubs + Azure Functions</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on May 19, 2016</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<p><img src="/content/images/2016/05/slack.png" alt="Colors" /></p>
+
+<p>Keeping tabs on an Azure Subscription can be difficult. What’s happening in our environments?  Are operations failing?  These questions are hard enough with a handful of resources, but in a busy subscription containing hundreds of resources we can quickly be searching for needles in a haystack.</p>
+
+<p>Here’s where logs can help.  Azure Audit Logs give us a consistent way of tracking Operations and Events at the Resource, Resource Group, or Subscription level.</p>
+
+<p><img src="/content/images/2016/05/azure-audit-logs.png" alt="Azure Audit Logs" /></p>
+
+<p>These logs get down in the nitty gritty of our resources and serve as a critical tool in tracking changes to our environments over time.  Logs are kept for 90 days, which can be easily extended by configuring continuous export to an Azure Storage Account.  This makes a great use case for the brand new <a href="https://azure.microsoft.com/en-us/blog/introducing-azure-cool-storage/">Azure Cool Blob Storage</a> accounts (I <em>love</em> that new resource smell!)</p>
+
+<p>Keeping our logs sitting around until the next ice age is great, but what if I want actionable data right now?  For that we can turn to a new feature of Audit Logs: Export to Azure Event Hub. This <a href="https://azure.microsoft.com/en-us/blog/new-features-for-azure-diagnostics-and-azure-audit-logs/">new capability</a> allows us to pipe log data into an Event Hub, which is optimized for high levels of data ingestion.  Once in the hub, we can interact with that data in a variety of ways.</p>
+
+<p>For example, we could use Azure Stream Analytics to analyze the data pouring into the hub by taking advantage of its SQL-esque syntax and windowing support.  Or we could get our big data on by processing Event Hub data with <a href="https://azure.microsoft.com/en-us/documentation/articles/hdinsight-storm-develop-java-event-hub-topology/">Storm</a>.  We could roll a <a href="https://blogs.msdn.microsoft.com/kaevans/2015/02/24/scaling-azure-event-hubs-processing-with-worker-roles/">Worker Role</a> with the lovable EventProcessorHost.</p>
+
+<p>Those are all great options, but sound like a lot of work.  <strong>All I want to do is pop an announcement into Slack whenever there’s an event that I need to take a look at my subscription</strong>.  Valuing speed, I decided to take the new Azure Functions out for a spin.</p>
+
+<iframe src="https://channel9.msdn.com/Shows/Cloud+Cover/Episode-205-Azure-Functions-with-Chris-Anderson/player" width="960" height="540" allowfullscreen="" frameborder="0"></iframe>
+<p>(Shout out to my <del>boy</del> colleague <a href="https://twitter.com/romitgirdhar">@romitgirdhar</a> whose cube used to be near mine in Charlotte)</p>
+
+<p>Every time I touch Functions I smile like a kid that just got handed a puppy.  As a developer, Functions abstract away as much boilerplate, table stakes code as possible, and allows me to focus on code that I actually care about.  It is delightful, and <a href="https://azure.microsoft.com/en-us/documentation/articles/functions-overview/">has support</a> for C#, Node.js, Python, F#, PHP, batch, bash, Java, <del>and a partridge in a pear tree</del>.</p>
+
+<h2 id="configure-slack">Configure Slack</h2>
+<p>Let’s start by getting Slack ready to go.  We’ll need to do three things:</p>
+
+<ul>
+  <li>Create a new channel that will be dedicated to our alerts</li>
+  <li>Setup a web hook integration that will pipe messages into our channel</li>
+  <li>Connect the web hook to our channel</li>
+</ul>
+
+<p>Inside of Slack, create a new channel named “auditlogs” by clicking the “+” icon next to “Channels” on the left hand nav.  From there, select the gear icon at the top and select “Add an app or integration”</p>
+
+<p><img src="/content/images/2016/05/slack-start.png" alt="Slack start" /></p>
+
+<p>This will pop a browser window, where you can search for “Incoming WebHooks”.  This integration sets up an endpoint inside of Slack.  Whenever an HTTP post hits that endpoint carrying a message, the message will be inserted into a Slack channel.  Web Hooks are a terrific way to integrate disparate systems in a straightforward manner.</p>
+
+<p><img src="/content/images/2016/05/slack-integrations.png" alt="Slack Integrations" /></p>
+
+<p>Follow the wizard to stand up a web hook integration for the “auditlogs” channel, being sure to make note of the “Webhook URL”.  We will need that shortly.</p>
+
+<p><img src="/content/images/2016/05/slack-settings.png" alt="Webhook Settings" /></p>
+
+<p>Taking the URL and the sample from the “Sending Messages” section’s documentation, let’s test that endpoint in <a href="http://www.getpostman.com/">Postman</a> to see webhook functionality in action.</p>
+
+<p><img src="/content/images/2016/05/postman.png" alt="Postman test" /></p>
+
+<p><img src="/content/images/2016/05/postman-success.png" alt="Postman Success" /></p>
+
+<p>When we send a simple HTTP POST to the endpoint, the object we pass it beautifully appears in our channel. Now that have a Slack integration ready to accept POSTs, let’s fire up Azure.</p>
+
+<h2 id="azure">Azure</h2>
+<p>First off, we need a Service Bus Namespace.  This will serve as a container for our Event Hub.  From the Azure Portal, hit the “+” sign in the top right, and under “Hybrid Integration” select “Service Bus”.</p>
+
+<p><img src="/content/images/2016/05/azure-portal-sb.png" alt="Azure Portal Service Bus" /></p>
+
+<p>Currently, the Service Bus functionality has not yet landed in the new portal, so we find ourselves quickly sitting in the Classic Portal.  What we are really after is the Service Bus Namespace, so do not worry too much about the Queue name (we’re about to delete it).</p>
+
+<p><img src="/content/images/2016/05/sb-creation.png" alt="Service Bus Creation" /></p>
+
+<p>After the Service Bus is provisioned, click into the new resource and delete the queue.</p>
+
+<p><img src="/content/images/2016/05/sb-home.png" alt="Service Bus Home" />
+<img src="/content/images/2016/05/deletequeue.png" alt="Delete Queue" /></p>
+
+<p>Back in the Ibiza Portal, let’s hook up the Service Bus to our Audit Logs.  Select the flyout from the left nav and search for “Audit” to quickly locate the link for the Audit Log blad. Click it to have the blade flyout.</p>
+
+<p><img src="/content/images/2016/05/portal-search.png" alt="Portal Search" /></p>
+
+<p>Next, click the “Export” button from the top nav to show the export options.</p>
+
+<p><img src="/content/images/2016/05/export-button.png" alt="Export button" /></p>
+
+<p>Click on the section for “Azure Event Hub” and select our Service Bus.  <strong>This export functionality will automatically setup an Event Hub for us</strong>, hence why we only configured a Service Bus Namespace without an actual Event Hub earlier.</p>
+
+<p><img src="/content/images/2016/05/export-eh.png" alt="EH Export" /></p>
+
+<p><em>However</em>, after clicking “OK” the “Export Audit Logs” blade won’t let us save. It wants us to configure a storage account first.  I’m not sure if this is a UI bug (it says right at the top this is “Preview”) or intended behavior, but it creates a dead end.</p>
+
+<p><img src="/content/images/2016/05/greyedout.png" alt="greyed out options" /></p>
+
+<p>I went ahead and created a new storage account (Standard_LRS), and piped it into this configuration area. Also worth mentioning that I selected all the regions available in the previous selection drop down.</p>
+
+<p><img src="/content/images/2016/05/greyedin.png" alt="Option Available" /></p>
+
+<p>With the export functionality wired up, we now need a Function to handle our logic.  Provision a new Function in the portal with the little green “+” sign in the top left, putting it in the same Resource Group as the Storage account we created previously.</p>
+
+<p><img src="/content/images/2016/05/function-app.png" alt="Provision Function" />
+<img src="/content/images/2016/05/rg-resources.png" alt="RG Resources" /></p>
+
+<p>Opening up our Function, let’s start with “New” in the top left. Selecting “Node.js” and “Core” from the dropdowns, click the tile for “EventHubTrigger - Node”.  This template will get us started with an input binding for Event Hubs. Input and output bindings mean we don’t have to write all the code to hook into and transfer data between a data source - in this case, an Event Hub.  It’s magic.</p>
+
+<p><img src="/content/images/2016/05/new-function.png" alt="New Function Settings" /></p>
+
+<p>Scrolling down we can configure the input binding. Remember when I said the Audit Log Export feature creates an event hub for us? It’s named “insights-operational-logs”.  Fill that in, and click “Select” next to the Event Hub Connection box.</p>
+
+<p><img src="/content/images/2016/05/binding-config.png" alt="Binding Config" /></p>
+
+<p>Here’s where we connect back to our Event Hub.</p>
+
+<p><img src="/content/images/2016/05/connection-setup.png" alt="SB Config" /></p>
+
+<p>Only problem is that we haven’t yet setup a Shared Access Policy.  We need a SAP to get a connection string.  Sorry to keep jumping between portals, but open Classic Portal in a new tab.  From there, open our Event Hub and click the “Configure” tab. Here we can create a new Shared Access Policy with “Listen” Permissions.  This permission level allows our Function to read items off of the Event Hub. Click save, then head to the Dashboard tab on the top nav.</p>
+
+<p><img src="/content/images/2016/05/eh-policy.png" alt="EH Policy Setup" /></p>
+
+<p>On the dashboard of our Event Hub, click “Connection Strings” on the bottom nav bar and copy the String for the policy name you just created.</p>
+
+<p><img src="/content/images/2016/05/eh-string.png" alt="EH String" /></p>
+
+<p>Back in the new portal’s tab, use the connection string to complete the “Add a Service Bus Connection” blade.  Before pasting, remove the <code class="highlighter-rouge">;EntityPath=insights-operational-logs</code> from the end of the string.</p>
+
+<p><code class="highlighter-rouge">Endpoint=sb://auditlogprocessor-ns.servicebus.windows.net/;SharedAccessKeyName=FunctionPolicy;SharedAccessKey=Fc1et/idbtoprwO5K1MLaFgegXTuXpdR/eUW2Dm3swc=;EntityPath=insights-operational-logs</code></p>
+
+<p>becomes</p>
+
+<p><code class="highlighter-rouge">Endpoint=sb://auditlogprocessor-ns.servicebus.windows.net/;SharedAccessKeyName=FunctionPolicy;SharedAccessKey=Fc1et/idbtoprwO5K1MLaFgegXTuXpdR/eUW2Dm3swc=</code></p>
+
+<p>The entity is handled in “Event Hub Name” box in the function binding configuration.  Click on and then “Create” the function.</p>
+
+<p><img src="/content/images/2016/05/sbconn.png" alt="SB Connection" /></p>
+
+<p><img src="/content/images/2016/05/function-setup-finish.png" alt="Function Setup Finished" /></p>
+
+<p>We now have a Function App ready for us. You may see a flurry of activity as your Function comes online and processes the logs that have been piped from the Audit Logs into the Event Hub.  These logs have been sitting in the Event Hub just waiting for a consumer (our Function) to come pick them up and process them.</p>
+
+<p><img src="/content/images/2016/05/logs-catchup.png" alt="Console catchup" /></p>
+
+<p>Now for our custom code.  We want to do a variety of things</p>
+
+<ul>
+  <li>Loop through each received log entry, as the Event Hub sends us an array of entries</li>
+  <li>Discard any log entries that are Informational in nature. There are <strong>tons</strong> of these generated by the Azure service, and they do not typically require immediate attention</li>
+  <li>Build a response packet of formatted strings</li>
+  <li>Send response to the Slack Web Hook endpoint</li>
+</ul>
+
+<p>For these activities, we use the following code:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"use strict";
+
+var request = require('request');
+
+module.exports = function (context, myEventHubTrigger) {
+
+    context.log('======================================================');
+    context.log('Node.js eventhub trigger function processed work item');
+
+    // Grab logs from the returned records object
+    var logs = myEventHubTrigger.records;
+
+    // Prepare a response
+    // Multiple logs may be received, but we'll batch into one response 
+    var alert = [];
+
+    // Loop through the logs
+    var counter = 0;
+    logs.forEach(function (log) {
+
+        // Only process logs that are non-informational or a new RG
+        // This cuts down on chatter everytime Azure ties its shoes
+        if (log.level !== 'Information' || log.operationName === 'MICROSOFT.RESOURCES/SUBSCRIPTIONS/RESOURCEGROUPS/WRITE') {
+
+            // Build out an alert's markup
+            alert.push(buildAlert(log));
+
+        }
+
+        // Iterate counter and check progress
+        counter++;
+        if (counter === logs.length) {
+
+            context.log('Finished looping through logs');
+
+            // Finished iterating, send batched alert
+            sendAlert(context, alert);
+
+        }
+
+    });
+
+};
+
+function buildAlert(log) {
+
+    // String build via an array
+    // Using ES6 Template Literals 
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+    var logContent = [
+        `time:\t ${log.time}`,
+        `tenantId:\t ${log.identity.claims["http://schemas.microsoft.com/identity/claims/tenantid"]}`,
+        `operationName:\t ${log.operationName}`,
+        `category:\t ${log.category}`,
+        `resultType:\t ${log.resultType}`,
+        `resultSignature:\t ${log.resultSignature}`,
+        `identity:\t ${log.identity.claims.name} (${log.identity.claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"]})`,
+        `location:\t ${log.location}`,
+        `resourceId: ${log.resourceId}`
+    ];
+
+    // Determine color for alert
+    var color;
+    switch (log.level) {
+        case 'Error':
+            color = 'danger';
+            break;
+        case 'Warning':
+            color = 'warning';
+            break;
+        case 'Information':
+            color = '#439FE0';
+            break;
+    }
+
+    // Create object to return
+    var formattedLog = {
+        "fallback": logContent.join('\n'),
+        "color": color,
+        "fields": [
+            {
+                "title": log.level,
+                "value": logContent.join('\n'),
+                "short": false
+            }
+        ]
+    };
+
+    // Return
+    return formattedLog;
+
+}
+
+function sendAlert(context, alert) {
+
+    // Send alert to Slack webhook
+    request.post(process.env.SLACK_WEBHOOK_URL, {
+        json: {
+            "username": "audit-bot",
+            "icon_url": "https://pbs.twimg.com/profile_images/546024114272468993/W9gT7hZo.png",
+            "attachments": alert
+        }
+    }, function (error) {
+
+        if (error) {
+            context.log('Error posting the message');
+            context.done(error);
+        }
+        else {
+            context.log('Successfully posted the message');
+            context.done();
+        }
+
+    });
+
+}
+</code></pre></div></div>
+
+<p>Our code needs a few additional last pieces to function.  In <code class="highlighter-rouge">sendAlert()</code> we’re using an environmental variable rather than hardcoding the URL directly into our code.  This makes the function more flexible.</p>
+
+<p>To set that environmental variable, click “Function App Settings” in the top right corner of the Function designer and select “Go to App Service Settings”.</p>
+
+<p><img src="/content/images/2016/05/function-app-settings.png" alt="App Settings Blade" /></p>
+
+<p>Oh hello there, App Service Blade! You look familiar! From here, we can head to Settings -&gt; Application Settings to add in an environmental variable named <code class="highlighter-rouge">SLACK_WEBHOOK_URL</code>, just like any other Azure Web App.</p>
+
+<p><img src="/content/images/2016/05/settings.png" alt="Function App Settings" /></p>
+
+<p>Also note that there’s an App Setting called “EventHubConnection”.  That should also look familiar, as it’s the connection we previously configured in the Function’s binding configuration. Save the Application S</p>
+
+<p>One more comment on the code from above is that we have a dependency on a NPM library named <a href="https://github.com/request/request">“Request”</a>.  We need to go add this library into our Function, or else the code will fail. On the main App Service Blade, click “Browse” on the top nav to pop a new tab navigating to our Function app’s URL.</p>
+
+<p>Spoiler: it’s going to be anti-climactic.  We don’t have pages to serve back, so you all you’ll see is a lovely white screen.  Instead, let’s head over to the Kudu add <code class="highlighter-rouge">.scm</code> into the URL structure right before <code class="highlighter-rouge">.azurewebsites.net</code>. Our original URL of <code class="highlighter-rouge">http://auditlogfunction.azurewebsites.net/</code> becomes <code class="highlighter-rouge">http://auditlogfunction.scm.azurewebsites.net/</code> and voila! Kudu Time™.</p>
+
+<p><img src="/content/images/2016/05/kudu.png" alt="Kudu Home" /></p>
+
+<p>Click the “Debug Console” from the top nav and select PowerShell.  From here we can navigate to our Function app by selecting site -&gt; wwwroot -&gt; AuditLogProcessor (our function name).  In this directory we can see <code class="highlighter-rouge">index.js</code> containing the code we pasted in earlier, and <code class="highlighter-rouge">function.json</code> containing the bindings for our Function.</p>
+
+<p>Click into the console, type in <code class="highlighter-rouge">npm install request</code> and hit enter. The package will be installed and our app is ready to rock.</p>
+
+<p><img src="/content/images/2016/05/kudu-console.png" alt="Console" /></p>
+
+<p>We could have provided an entire <code class="highlighter-rouge">package.json</code> chalked full of NPM dependencies, but either way we get a lovely <code class="highlighter-rouge">node_modules</code> folder.</p>
+
+<p><img src="/content/images/2016/05/finished.png" alt="NPM modules" /></p>
+
+<h2 id="wrap-up">Wrap Up</h2>
+<p>We now have an Azure Function that pulls messages off of an Event Hub, which is receiving a steady stream of data from the Azure Audit Logs.  The Function then hits a Slack WebHook to alert me that I need to take action.  Slack even gives us pretty colors to use in distinguishing Informational logs from Errors or Warnings.</p>
+
+<p><img src="/content/images/2016/05/slack.png" alt="Colors" /></p>
+
+<p>Enjoy!</p>
+
+<p>(Oh and that was a ton of steps. Take the easy way and <a href="https://github.com/stevenfollis/Samples/tree/master/AuditLogFunction">download this ARM Template</a> that deploys all the above infrastructure AND does a Web Deploy of the Function code. I won’t judge.)</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps/" data-toggle="tooltip" data-placement="top" title="Deploying a Node.js API with Loopback to Azure Web Apps">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/2016/09/24/background-image-processing-with-azure-functions-and-nodejs/" data-toggle="tooltip" data-placement="top" title="Background image thumbnail processing with Azure Functions and NodeJS">Next Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+
+
+</body>
+
+</html>

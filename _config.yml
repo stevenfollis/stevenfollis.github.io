@@ -1,0 +1,25 @@
+# Site settings
+title: Steven Follis
+header-img: img/chicago-stained-glass.jpg
+email: steven.follis@gmail.com
+copyright_name: Steven Follis
+description: "Thoughts on technology by Steven Follis"
+baseurl: ""
+url: "http://stevenfollis.com"
+twitter_username: steven_follis
+github_username:  stevenfollis
+facebook_username:  steven.follis
+email_username:  steven.follis@gmail.com
+
+# Google Analytics
+# To enable google analytics, uncomment below line with a valid Google Tracking ID
+# google_tracking_id:
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+permalink: pretty
+paginate: 5
+exclude: ["less","node_modules","Gruntfile.js","package.json","README.md"]
+
+plugins: [jekyll-paginate, jekyll-feed, jekyll-seo-tag]
