@@ -1,95 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.0">Jekyll</generator><link href="http://stevenfollis.com/feed.xml" rel="self" type="application/atom+xml" /><link href="http://stevenfollis.com/" rel="alternate" type="text/html" /><updated>2017-10-05T10:52:44-05:00</updated><id>http://stevenfollis.com/</id><title type="html">Steven Follis</title><subtitle>Thoughts on technology by Steven Follis</subtitle><entry><title type="html">Containerizing an Access Database in a Windows Container</title><link href="http://stevenfollis.com/2017/09/30/access-database-windows-container/" rel="alternate" type="text/html" title="Containerizing an Access Database in a Windows Container" /><published>2017-09-30T12:08:10-05:00</published><updated>2017-09-30T12:08:10-05:00</updated><id>http://stevenfollis.com/2017/09/30/access-database-windows-container</id><content type="html" xml:base="http://stevenfollis.com/2017/09/30/access-database-windows-container/">&lt;h1 id=&quot;containerizing-an-access-database-in-a-windows-container&quot;&gt;Containerizing an Access Database in a Windows Container&lt;/h1&gt;
-
-&lt;p&gt;At Docker we are seeing a cavalcade of customers finding value in containers not just for greenfield microservice applications, but also as a key to modernizing legacy applications. One recent conversation involved a question: can a legacy line of business application that uses an Access database be transitioned to a container? Having not touched an Access database in many years, I set out to find an answer.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-database&quot;&gt;The Database&lt;/h2&gt;
-
-&lt;p&gt;Needing a sample database that would be representative of an older application, I fired up Access 2017 and created a new database from the Northwind Traders template. This sample database started up as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.accdb&lt;/code&gt; file, the file format that Access moved to back in 2007. I wanted to lean more oldschool, so attempted an export to the older &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; format. Unfortunately, Access refused the operation, citing the new features in-use that were not backwards compatible to previous formats.&lt;/p&gt;
-
-&lt;p&gt;With Northwind appearing to be a dead end, I looked online for a second sample database known to SQL aficionados as AdventureWorks. &lt;a href=&quot;https://adventureworksaccess.codeplex.com/&quot;&gt;Codeplex&lt;/a&gt; had a copy, and although it downloaded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.aacdb&lt;/code&gt;, Access easily exported it as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; by using the &lt;strong&gt;Access 2000 Database&lt;/strong&gt; option.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image001.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;The .mdb file size is over 100MB, which makes GitHub will barf. To shave off some space, I trimmed several rows out of the &lt;code class=&quot;highlighter-rouge&quot;&gt;Sales_SalesOrderDetail&lt;/code&gt; table&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h2 id=&quot;the-web-application&quot;&gt;The Web Application&lt;/h2&gt;
-
-&lt;p&gt;With a database secured, it was time to stand up a web application to interface with the data. My goal was to create a proof of concept web application that communicate with the database and displays data via a browser.&lt;/p&gt;
-
-&lt;p&gt;Firing up Visual Studio 2017 Community Edition, I created a solution based on the web application template. Wanting to be as legacy-esque as possible, I set the .NET version to a stately 2.0.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image002.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Once the solution provisioned, I created a &lt;code class=&quot;highlighter-rouge&quot;&gt;default.aspx&lt;/code&gt; web form and an &lt;code class=&quot;highlighter-rouge&quot;&gt;App_Data&lt;/code&gt; folder. The &lt;code class=&quot;highlighter-rouge&quot;&gt;AdventureWorks.mdb&lt;/code&gt; file went into App_Data, and I scaffolded out a simple page in the aspx file by importing the Bootstrap library and adding a heading.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image003.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Now came the fun part: plumbing the database into the web app. The first path taken invovled opening the Server Explorer and using the connection wizard to setup a connnection to an Access DB. This turns out to use &lt;a href=&quot;https://en.wikipedia.org/wiki/Microsoft_Jet_Database_Engine&quot;&gt;JET&lt;/a&gt;, which was long superceed by ACE. Another downside to using JET was that while it worked, I had to install an Office Distributable package. This package was an &lt;code class=&quot;highlighter-rouge&quot;&gt;.exe&lt;/code&gt; wizard with a UI, and I was nervous about getting it to run in headless container environment (where’s an MSI when you need one?) The customer was also using ODBC today, so I stepped back and re-implemented the connection via an ODBC connector.&lt;/p&gt;
-
-&lt;p&gt;ODBC has several ways of configuration, and the Visual Studio wizard took me down a path of using a system-level DSN. This DSN securely maps the location of the database file and ODBC driver settings into a credential that my application can use. After setting the world’s smallest &lt;code class=&quot;highlighter-rouge&quot;&gt;ConnectionString&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;web.config&lt;/code&gt; I was off to the races. Running locally, I was able to see a table of data pulled from the Access database file.&lt;/p&gt;
-
-&lt;p&gt;With my simple application working on my local laptop it was time to container-ize.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-container&quot;&gt;The Container&lt;/h2&gt;
-
-&lt;p&gt;Creating a container involves crafting a Dockerfile. As a base image, &lt;code class=&quot;highlighter-rouge&quot;&gt;microsoft/windowsservernano&lt;/code&gt; is a lighter weight base, however legacy applications rely on a myriad of features and capabilities that are simply not possible in nano. For this app, I instead turned to &lt;code class=&quot;highlighter-rouge&quot;&gt;microsoft/aspnet:4.6.2&lt;/code&gt;, based on the larger and more robust Windows Server Core.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;The &lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/core/docker/visual-studio-tools-for-docker&quot;&gt;Visual Studio Tools for Docker&lt;/a&gt; are terrific for setting a debugging environment within VS for testing containers. However, I find it overly complex for simpler projects, and the heavy use of build time arguments that are necessary for debugging make greatly increases the complexity of moving the project into a CI/CD pipeline. Instead of auto-generating the Dockerfile via the Tools, I instead opted to handcraft my own&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;With the &lt;code class=&quot;highlighter-rouge&quot;&gt;FROM&lt;/code&gt; statement ready to go, it was time to configure the inside of the container to match my local environment. This requires a few steps:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Configure the ODBC DSN with the local of the &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; file and driver. This was accomplished with a bit of PowerShell, and was far easier than I initally expected.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Insert my VS solution code into the pre-determined IIS location of &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\inetpub\wwwroot&lt;/code&gt; as &lt;a href=&quot;https://hub.docker.com/r/microsoft/aspnet/&quot;&gt;instruced&lt;/a&gt; by the aspnet image.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;However, after adding the steps, building the image, and starting a container, I was met with an ugly error screen.&lt;/p&gt;
-
-&lt;p&gt;StackOverflow informed me that this was likely due to a mismatch in running a 64-bit application with the 32-bit ODBC driver. When I initially created the application, VS by default used the 32-bit version of IIS Express (hence no issue), whereas the aspnet image was defaulting to using 64-bit IIS. Back in VS, I set it to use 64-bit IIS Express, and confirmed that I saw the same error - this issue was realted to 32 vs. 64 bit settings.&lt;/p&gt;
-
-&lt;p&gt;The solution was to adjust the IIS Application Pool within the container to run a 32-bit application. This again was a snippet of PowerShell, which enabled the feature. After a quick re-build and re-creation of a container, I was pleased to see the sample application running as expected.&lt;/p&gt;
-
-&lt;p&gt;Dockerfile Used:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-Dockerfile&quot;&gt;# escape=`
-FROM microsoft/aspnet:4.6.2
-
-# Configure the IIS Application Pool for 32-bit applications
-RUN C:\Windows\System32\inetsrv\appcmd set apppool /apppool.name:DefaultAppPool /enable32bitapponwin64:true;
-
-# Create a new ODBC DSN mapped to the database file
-RUN	Add-OdbcDsn -Name &quot;AWDB&quot; `
-	-DriverName &quot;'Microsoft Access Driver (*.mdb)'&quot; `
-	-Platform &quot;32-bit&quot; `
-	-DsnType &quot;System&quot; `
-	-SetPropertyValue 'Dbq=C:\inetpub\wwwroot\App_Data\AdventureWorks.mdb' `
-	-PassThru
-
-# Copy files into container
-ADD . /inetpub/wwwroot
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&quot;the-wrap-up&quot;&gt;The Wrap Up&lt;/h2&gt;
-
-&lt;p&gt;This [incredibly] simple application imparted several nuggets of wisdom related to the containerization of legacy applications.&lt;/p&gt;
-
-&lt;p&gt;First, the “hello world” examples are nice for a quick demonstration, but real-world apps are going to take some finese and adjustments to the base images. Be prepared to track down PowerShell commandlets and overloads that may not be immediately obvious.&lt;/p&gt;
-
-&lt;p&gt;Second, there are many ways to skin a cat and those ways have likely evolved between when the app was created and today. There were 3+ methods of talking to an Access database, each with varying pros/cons, histories, and present-day supportability concerns.&lt;/p&gt;
-
-&lt;p&gt;Finally, erring on the side of configuration via PowerShell rather than an MSI or other installing simplifies the creation and maintenance of images. This will not always be an option, but I greatly preferred PS to touching a ~10 year old installer .exe.&lt;/p&gt;
-
-&lt;p&gt;Full Visual Studio solution is available on &lt;a href=&quot;https://github.com/stevenfollis/accessdb-windows-container&quot;&gt;GitHub&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Containerizing an Access Database in a Windows Container</summary></entry><entry><title type="html">Node + Express + AzureAD + Yeoman with generator-express-azuread</title><link href="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/" rel="alternate" type="text/html" title="Node + Express + AzureAD + Yeoman with generator-express-azuread" /><published>2017-06-23T08:45:10-05:00</published><updated>2017-06-23T08:45:10-05:00</updated><id>http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread</id><content type="html" xml:base="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/">&lt;p&gt;Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent &lt;a href=&quot;http://passportjs.org/&quot;&gt;PassportJS&lt;/a&gt; middleware. The AzureAD team maintains an official Passport “strategy” called &lt;a href=&quot;https://github.com/AzureAD/passport-azure-ad&quot;&gt;passport-azure-ad&lt;/a&gt;, making it easy to secure Node applications with Azure Active Directory.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.0">Jekyll</generator><link href="http://stevenfollis.com/feed.xml" rel="self" type="application/atom+xml" /><link href="http://stevenfollis.com/" rel="alternate" type="text/html" /><updated>2017-10-05T10:57:49-05:00</updated><id>http://stevenfollis.com/</id><title type="html">Steven Follis</title><subtitle>Thoughts on technology by Steven Follis</subtitle><entry><title type="html">Node + Express + AzureAD + Yeoman with generator-express-azuread</title><link href="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/" rel="alternate" type="text/html" title="Node + Express + AzureAD + Yeoman with generator-express-azuread" /><published>2017-06-23T08:45:10-05:00</published><updated>2017-06-23T08:45:10-05:00</updated><id>http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread</id><content type="html" xml:base="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/">&lt;p&gt;Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent &lt;a href=&quot;http://passportjs.org/&quot;&gt;PassportJS&lt;/a&gt; middleware. The AzureAD team maintains an official Passport “strategy” called &lt;a href=&quot;https://github.com/AzureAD/passport-azure-ad&quot;&gt;passport-azure-ad&lt;/a&gt;, making it easy to secure Node applications with Azure Active Directory.&lt;/p&gt;
 
 &lt;blockquote&gt;
   &lt;p&gt;Need a quick ‘n dirty way to secure your web app? Check out the &lt;a href=&quot;https://docs.microsoft.com/en-us/azure/app-service/app-service-authentication-overview&quot;&gt;“EasyAuth”&lt;/a&gt; feature of App Service for a no-code change way of standing up an authentication barrier in front of your app. Even works with social identify providers such as FB!&lt;/p&gt;
@@ -1416,4 +1325,22 @@ app.start();
 
 &lt;p&gt;We’ve now successfully used the command line with a personal access token to execute a pull request for code sitting in a Visual Studio Online (VSO) Git repository. You can see it even pullled down new files locally!&lt;/p&gt;
 
-&lt;p&gt;With this PAT we’re free to use the command line for all of our Git related needs.  Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Once upon a time, using Visual Studio Online/TFS meant you were locked into using Team Foundation Version Control (TFVC) for all of your versioning needs. Nowadays you have a choice of centralized TFVC, or decentralized Git repositories (and no, TFVC is not dead).</summary></entry></feed>
+&lt;p&gt;With this PAT we’re free to use the command line for all of our Git related needs.  Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Once upon a time, using Visual Studio Online/TFS meant you were locked into using Team Foundation Version Control (TFVC) for all of your versioning needs. Nowadays you have a choice of centralized TFVC, or decentralized Git repositories (and no, TFVC is not dead).</summary></entry><entry><title type="html">Using CSS Regions in Visual Studio</title><link href="http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio/" rel="alternate" type="text/html" title="Using CSS Regions in Visual Studio" /><published>2015-04-23T06:54:13-05:00</published><updated>2015-04-23T06:54:13-05:00</updated><id>http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio</id><content type="html" xml:base="http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio/">&lt;p&gt;Short tip today regarding CSS in Visual Studio that is far from universally known.  Many folks use comments to keep sections of CSS code organized:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_080415_AM.jpg&quot; alt=&quot;Regular CSS Comments&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;But our file is still super long.  If we want to adjust our footer, we have to scroll through numerous sections that we don’t care about.&lt;/p&gt;
+
+&lt;p&gt;This is where CSS Regions can help out!  Let’s amend the comments a bit, changing &lt;code class=&quot;highlighter-rouge&quot;&gt;/*&lt;/code&gt; over to &lt;code class=&quot;highlighter-rouge&quot;&gt;/*#region&lt;/code&gt; and at the end of a block adding a &lt;code class=&quot;highlighter-rouge&quot;&gt;/*#endregion*/&lt;/code&gt;:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_080807_AM.jpg&quot; alt=&quot;CSS with Regions Added&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Those pink arrows are pointing out some new expand/collapse icons.  We can now easily collapse chunks of our code, allowing us to easily pinpoint where on the page the footer specific styles are located:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_081126_AM.jpg&quot; alt=&quot;Collapsed code&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This is an extremely simple example, but on a long CSS file with 10+ sections of code using regions can save loads of time and headache.  Also for new team members it’s great to open up a CSS file to nicely collapsed sections, allowing them to at a glance ramp up on the different chunk of an application.&lt;/p&gt;
+
+&lt;p&gt;Prefer keyboard shortcuts?  CSS Regions has you covered!  Expand or Collapse All with &lt;code class=&quot;highlighter-rouge&quot;&gt;CTRL&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;L&lt;/code&gt;.  For an individual section, place your cursor in that section and use &lt;code class=&quot;highlighter-rouge&quot;&gt;CTRL&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Very simple technique, but one that makes working with CSS in Visual Studio even easier.  Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Short tip today regarding CSS in Visual Studio that is far from universally known. Many folks use comments to keep sections of CSS code organized:</summary></entry></feed>
