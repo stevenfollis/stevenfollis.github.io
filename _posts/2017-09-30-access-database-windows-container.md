@@ -54,6 +54,27 @@ StackOverflow informed me that this was likely due to a mismatch in running a 64
 
 The solution was to adjust the IIS Application Pool within the container to run a 32-bit application. This again was a snippet of PowerShell, which enabled the feature. After a quick re-build and re-creation of a container, I was pleased to see the sample application running as expected.
 
+Dockerfile Used:
+
+```Dockerfile
+# escape=`
+FROM microsoft/aspnet:4.6.2
+
+# Configure the IIS Application Pool for 32-bit applications
+RUN C:\Windows\System32\inetsrv\appcmd set apppool /apppool.name:DefaultAppPool /enable32bitapponwin64:true;
+
+# Create a new ODBC DSN mapped to the database file
+RUN	Add-OdbcDsn -Name "AWDB" `
+	-DriverName "'Microsoft Access Driver (*.mdb)'" `
+	-Platform "32-bit" `
+	-DsnType "System" `
+	-SetPropertyValue 'Dbq=C:\inetpub\wwwroot\App_Data\AdventureWorks.mdb' `
+	-PassThru
+
+# Copy files into container
+ADD . /inetpub/wwwroot
+```
+
 ## The Wrap Up
 
 This [incredibly] simple application imparted several nuggets of wisdom related to the containerization of legacy applications. 
@@ -63,3 +84,7 @@ First, the "hello world" examples are nice for a quick demonstration, but real-w
 Second, there are many ways to skin a cat and those ways have likely evolved between when the app was created and today. There were 3+ methods of talking to an Access database, each with varying pros/cons, histories, and present-day supportability concerns. 
 
 Finally, erring on the side of configuration via PowerShell rather than an MSI or other installing simplifies the creation and maintenance of images. This will not always be an option, but I greatly preferred PS to touching a ~10 year old installer .exe.
+
+Full Visual Studio solution is available on [GitHub](https://github.com/stevenfollis/accessdb-windows-container).
+
+Thanks!

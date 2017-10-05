@@ -10,7 +10,7 @@
 
     <title>Containerizing an Access Database in a Windows Container - Steven Follis</title>
 
-    <link rel="canonical" href="http://localhost:4000/2017/09/30/access-database-windows-container/">
+    <link rel="canonical" href="http://stevenfollis.com/2017/09/30/access-database-windows-container/">
 
     <!-- Bootstrap Core CSS -->
     <link rel="stylesheet" href="/css/bootstrap.min.css">
@@ -33,7 +33,7 @@
         <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
 
-    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+    <link type="application/atom+xml" rel="alternate" href="http://stevenfollis.com/feed.xml" title="Steven Follis" />
 
 </head>
 
@@ -43,13 +43,13 @@
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="Containerizing an Access Database in a Windows Container" />
 <meta property="og:description" content="Containerizing an Access Database in a Windows Container" />
-<link rel="canonical" href="http://localhost:4000/2017/09/30/access-database-windows-container/" />
-<meta property="og:url" content="http://localhost:4000/2017/09/30/access-database-windows-container/" />
+<link rel="canonical" href="http://stevenfollis.com/2017/09/30/access-database-windows-container/" />
+<meta property="og:url" content="http://stevenfollis.com/2017/09/30/access-database-windows-container/" />
 <meta property="og:site_name" content="Steven Follis" />
 <meta property="og:type" content="article" />
-<meta property="article:published_time" content="2017-09-30T13:08:10-04:00" />
+<meta property="article:published_time" content="2017-09-30T12:08:10-05:00" />
 <script type="application/ld+json">
-{"name":null,"description":"Containerizing an Access Database in a Windows Container","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2017/09/30/access-database-windows-container/","publisher":null,"image":null,"headline":"Containerizing an Access Database in a Windows Container","dateModified":"2017-09-30T13:08:10-04:00","datePublished":"2017-09-30T13:08:10-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/09/30/access-database-windows-container/"},"@context":"http://schema.org"}</script>
+{"name":null,"description":"Containerizing an Access Database in a Windows Container","author":null,"@type":"BlogPosting","url":"http://stevenfollis.com/2017/09/30/access-database-windows-container/","publisher":null,"image":null,"headline":"Containerizing an Access Database in a Windows Container","dateModified":"2017-09-30T12:08:10-05:00","datePublished":"2017-09-30T12:08:10-05:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://stevenfollis.com/2017/09/30/access-database-windows-container/"},"@context":"http://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -170,6 +170,26 @@
 
 <p>The solution was to adjust the IIS Application Pool within the container to run a 32-bit application. This again was a snippet of PowerShell, which enabled the feature. After a quick re-build and re-creation of a container, I was pleased to see the sample application running as expected.</p>
 
+<p>Dockerfile Used:</p>
+
+<pre><code class="language-Dockerfile"># escape=`
+FROM microsoft/aspnet:4.6.2
+
+# Configure the IIS Application Pool for 32-bit applications
+RUN C:\Windows\System32\inetsrv\appcmd set apppool /apppool.name:DefaultAppPool /enable32bitapponwin64:true;
+
+# Create a new ODBC DSN mapped to the database file
+RUN	Add-OdbcDsn -Name "AWDB" `
+	-DriverName "'Microsoft Access Driver (*.mdb)'" `
+	-Platform "32-bit" `
+	-DsnType "System" `
+	-SetPropertyValue 'Dbq=C:\inetpub\wwwroot\App_Data\AdventureWorks.mdb' `
+	-PassThru
+
+# Copy files into container
+ADD . /inetpub/wwwroot
+</code></pre>
+
 <h2 id="the-wrap-up">The Wrap Up</h2>
 
 <p>This [incredibly] simple application imparted several nuggets of wisdom related to the containerization of legacy applications.</p>
@@ -179,6 +199,10 @@
 <p>Second, there are many ways to skin a cat and those ways have likely evolved between when the app was created and today. There were 3+ methods of talking to an Access database, each with varying pros/cons, histories, and present-day supportability concerns.</p>
 
 <p>Finally, erring on the side of configuration via PowerShell rather than an MSI or other installing simplifies the creation and maintenance of images. This will not always be an option, but I greatly preferred PS to touching a ~10 year old installer .exe.</p>
+
+<p>Full Visual Studio solution is available on <a href="https://github.com/stevenfollis/accessdb-windows-container">GitHub</a>.</p>
+
+<p>Thanks!</p>
 
 
                 <hr>
