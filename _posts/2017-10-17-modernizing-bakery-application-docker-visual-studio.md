@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Modernizing the Web Matrix Bakery Application with Docker and Visual Studio
+title: Modernizing the Web Matrix Fourth Coffee Bakery Application with Docker and Visual Studio
 date: 2017-10-17 00:00:00.000000000 -06:00
 ---
 
