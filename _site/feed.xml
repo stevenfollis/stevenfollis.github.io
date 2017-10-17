@@ -1,4 +1,597 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.0">Jekyll</generator><link href="http://stevenfollis.com/feed.xml" rel="self" type="application/atom+xml" /><link href="http://stevenfollis.com/" rel="alternate" type="text/html" /><updated>2017-10-05T10:57:49-05:00</updated><id>http://stevenfollis.com/</id><title type="html">Steven Follis</title><subtitle>Thoughts on technology by Steven Follis</subtitle><entry><title type="html">Node + Express + AzureAD + Yeoman with generator-express-azuread</title><link href="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/" rel="alternate" type="text/html" title="Node + Express + AzureAD + Yeoman with generator-express-azuread" /><published>2017-06-23T08:45:10-05:00</published><updated>2017-06-23T08:45:10-05:00</updated><id>http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread</id><content type="html" xml:base="http://stevenfollis.com/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/">&lt;p&gt;Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent &lt;a href=&quot;http://passportjs.org/&quot;&gt;PassportJS&lt;/a&gt; middleware. The AzureAD team maintains an official Passport “strategy” called &lt;a href=&quot;https://github.com/AzureAD/passport-azure-ad&quot;&gt;passport-azure-ad&lt;/a&gt;, making it easy to secure Node applications with Azure Active Directory.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.0">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2017-10-17T10:58:23-04:00</updated><id>http://localhost:4000/</id><title type="html">Steven Follis</title><subtitle>Thoughts on technology by Steven Follis</subtitle><entry><title type="html">Modernizing the Web Matrix Bakery Application with Docker and Visual Studio</title><link href="http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/" rel="alternate" type="text/html" title="Modernizing the Web Matrix Bakery Application with Docker and Visual Studio" /><published>2017-10-17T02:00:00-04:00</published><updated>2017-10-17T02:00:00-04:00</updated><id>http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio</id><content type="html" xml:base="http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/">&lt;p&gt;&lt;a href=&quot;https://www.microsoft.com/web/webmatrix/&quot;&gt;Web Matrix&lt;/a&gt; is a code editor that has been around for a &lt;em&gt;very&lt;/em&gt; long time and will [sadly] reach end of life on &lt;a href=&quot;https://blogs.iis.net/webmatrix/webmatrix-product-support-ends-on-november-1st-2017&quot;&gt;November 1, 2017&lt;/a&gt;. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it.&lt;/p&gt;
+
+&lt;p&gt;Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-logo.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;pre-requisites&quot;&gt;Pre-Requisites&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.docker.com/docker-windows&quot;&gt;Docker for Windows&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.visualstudio.com/vs/community/&quot;&gt;Visual Studio 2017 Community Edition&lt;/a&gt; (or similar)&lt;/li&gt;
+  &lt;li&gt;SQL Server Express (or better) running locally&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;install-web-matrix&quot;&gt;Install Web Matrix&lt;/h2&gt;
+
+&lt;p&gt;Web Matrix 3.0 can be installed via the &lt;a href=&quot;http://go.microsoft.com/fwlink/?LinkID=286266&quot;&gt;Web Platform Installer&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-01.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!).&lt;/p&gt;
+
+&lt;p&gt;After installing, start the Web Matrix application.&lt;/p&gt;
+
+&lt;h1 id=&quot;part-1-the-web-application&quot;&gt;Part 1: The Web Application&lt;/h1&gt;
+
+&lt;h2 id=&quot;create-a-sample-bakery-application&quot;&gt;Create a sample Bakery application&lt;/h2&gt;
+
+&lt;p&gt;When Web Matrix is first started, you are greeted with a few options. For our purposes today, select &lt;strong&gt;New&lt;/strong&gt; and &lt;strong&gt;Template Gallery&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-02.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The Template Gallery contains several options. Select the &lt;strong&gt;Bakery&lt;/strong&gt; template tile, and name the site &lt;strong&gt;Bakery&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-03.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Feel free to try this same exercise with the Photo Gallery or Personal Site templates&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-04.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Once the solution is visible, click &lt;strong&gt;Run&lt;/strong&gt; from the top left corner of the ribbon to launch the application in a browser.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-05.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired &lt;a href=&quot;https://www.geekwire.com/2012/farewell-hotmail-microsoft-rolling-outlook-webmail-service/&quot;&gt;back in 2012&lt;/a&gt; for Outlook.com. Check out &lt;code class=&quot;highlighter-rouge&quot;&gt;Order.cshtml&lt;/code&gt;:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-06.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;With the application generated and running, let’s setup a Visual Studio solution for easier management.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Application files should be located at &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Users\&amp;lt;your username&amp;gt;\Documents\My Web Sites&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;configure-the-application-for-visual-studio&quot;&gt;Configure the application for Visual Studio&lt;/h2&gt;
+
+&lt;p&gt;Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click &lt;strong&gt;Visual Studio&lt;/strong&gt; from the ribbon bar.&lt;/p&gt;
+
+&lt;p&gt;I have &lt;a href=&quot;https://www.visualstudio.com/vs/community/&quot;&gt;Visual Studio 2017 Community&lt;/a&gt; edition installed, but any recent-ish version of VS should work.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-07.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Visual Studio then opens, with a VS Solution and Project generated with our code. Hit &lt;strong&gt;F5&lt;/strong&gt; to enter debug mode, and you should see the same web application in the browser as before.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-08.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In File Explorer, we have a bit of a mismatch. Our original files are located at &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Users\&amp;lt;your username&amp;gt;\Documents\My Web Sites&lt;/code&gt;, but our VS Solution is located at &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Users\&amp;lt;your username&amp;gt;\Documents\WebMatrix Solutions\Projects&lt;/code&gt;. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step.&lt;/p&gt;
+
+&lt;p&gt;Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward.&lt;/p&gt;
+
+&lt;p&gt;Close the open Solution in Visual Studio by selecting &lt;strong&gt;File&lt;/strong&gt; -&amp;gt; &lt;strong&gt;Close&lt;/strong&gt;. Then select &lt;strong&gt;File&lt;/strong&gt; -&amp;gt; &lt;strong&gt;New Project&lt;/strong&gt;, naming the Solution &lt;strong&gt;Bakery&lt;/strong&gt; and selecting the &lt;strong&gt;ASP.NET Empty Web Application&lt;/strong&gt; template from the Installed Visual C# web templates.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-09.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Be sure to also select &lt;strong&gt;.NET Framework 4&lt;/strong&gt; from the New Project’s dropdown. This was found from the left-hand navigation bar of &lt;strong&gt;Site&lt;/strong&gt; –&amp;gt; &lt;strong&gt;Settings&lt;/strong&gt; –&amp;gt; &lt;strong&gt;Select .NET Version&lt;/strong&gt; to see that it is configured to use .NET 4.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-10.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Once Visual Studio scaffolds out our Solution and Project, delete &lt;strong&gt;web.config&lt;/strong&gt; since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Users\steven\Documents\visual studio 2017\Projects\Bakery\WebApplication&lt;/code&gt; and pasting in all files from &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Users\steven\Documents\My Web Sites\Bakery&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select &lt;strong&gt;Add&lt;/strong&gt; -&amp;gt; &lt;strong&gt;Existing Item&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-11.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Then select all items in your Project’s folder (except for the existing &lt;code class=&quot;highlighter-rouge&quot;&gt;.csproj&lt;/code&gt; Project FIle) and select &lt;strong&gt;Add&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-12.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now in Visual Studio, all files are present. Hit &lt;strong&gt;F5&lt;/strong&gt; to again ensure that the Web Application loads as expected in a browser window.&lt;/p&gt;
+
+&lt;p&gt;That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing!&lt;/p&gt;
+
+&lt;h2 id=&quot;docker-ize-the-application&quot;&gt;Docker-ize the Application&lt;/h2&gt;
+
+&lt;p&gt;Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the &lt;a href=&quot;https://docs.microsoft.com/en-us/aspnet/core/publishing/visual-studio-tools-for-docker&quot;&gt;Visual Studio tools for Docker&lt;/a&gt;. Right-click on the WebApplication project, select &lt;strong&gt;Add&lt;/strong&gt;, and click &lt;strong&gt;Docker Support&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-13.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit &lt;strong&gt;F5&lt;/strong&gt; to launch a new debugging session you’ll likely meet this lovely screen:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-14.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;With an error saying:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;System.Data.SqlServerCe.SqlCeException occurred
+  HResult=0x80004005
+  Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\inetpub\wwwroot\App_Data\bakery.sdf ]
+  Source=SQL Server Compact ADO.NET Data Provider
+  StackTrace:
+&amp;lt;Cannot evaluate the exception stack trace&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;“The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with &lt;a href=&quot;https://blog.sixeyed.com/&quot;&gt;Elton Stoneman&lt;/a&gt;’s help (his new &lt;a href=&quot;https://www.amazon.co.uk/Docker-Windows-Elton-Stoneman-ebook/dp/B0711Y4J9K&quot;&gt;book&lt;/a&gt; is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile.&lt;/p&gt;
+
+&lt;p&gt;Open the Dockerfile that was auto-generated for us by the VS Tools for Docker:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-Dockerfile&quot;&gt;FROM microsoft/aspnet:4.7
+ARG source
+WORKDIR /inetpub/wwwroot
+COPY ${source:-obj/Docker/publish} .
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Update the &lt;strong&gt;Dockerfile&lt;/strong&gt; with a new &lt;code class=&quot;highlighter-rouge&quot;&gt;RUN&lt;/code&gt; statement and a fresh, non-IIS default working directory:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-Dockerfile&quot;&gt;FROM microsoft/aspnet:4.7
+ARG source
+WORKDIR /web-app
+RUN Remove-Website -Name 'Default Web Site'; \ 
+    Set-ItemProperty IIS:\AppPools\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \
+    New-Website -Name 'web-app' -Port 80 -PhysicalPath 'C:\web-app' -ApplicationPool 'DefaultAppPool'
+COPY ${source:-obj/Docker/publish} .
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;To avoid any insertion of the tooling’s debugging system, switch the Configuration to &lt;strong&gt;Release&lt;/strong&gt;, and hit &lt;strong&gt;CTRL-F5&lt;/strong&gt; to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s &lt;a href=&quot;https://github.com/Microsoft/aspnet-docker/blob/master/4.7/Dockerfile#L27&quot;&gt;entrypoint&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-15.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-16.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container:&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker inspect &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot;&lt;/span&gt; &amp;lt;your container name&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application.&lt;/p&gt;
+
+&lt;h1 id=&quot;part-2-the-database&quot;&gt;Part 2: The Database&lt;/h1&gt;
+
+&lt;h2 id=&quot;externalize-the-database&quot;&gt;Externalize the database&lt;/h2&gt;
+
+&lt;p&gt;The Bakery appplication is using &lt;a href=&quot;https://en.wikipedia.org/wiki/SQL_Server_Compact&quot;&gt;Microsoft SQL Server Compact (SQL CE)&lt;/a&gt;, a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single &lt;code class=&quot;highlighter-rouge&quot;&gt;.sdf&lt;/code&gt; file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an &lt;a href=&quot;https://hub.docker.com/r/microsoft/mssql-server-windows-express/&quot;&gt;official image on Docker Hub&lt;/a&gt;, but first we need to get our existing product catalog migrated.&lt;/p&gt;
+
+&lt;p&gt;Opening SQL Server Management Studio 17, I had expected to be able to migrate my &lt;code class=&quot;highlighter-rouge&quot;&gt;.sdf&lt;/code&gt; database to a format that would work with SQL Server (or at last generate a &lt;code class=&quot;highlighter-rouge&quot;&gt;.sql&lt;/code&gt; file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;There are numerous &lt;a href=&quot;http://erikej.blogspot.dk/2009/04/sql-compact-3rd-party-tools.html&quot;&gt;3rd party tools&lt;/a&gt; for getting data out of a SQL CE file if Web Matrix isn’t an option (or just &lt;a href=&quot;https://www.google.com/url?sa=t&amp;amp;rct=j&amp;amp;q=&amp;amp;esrc=s&amp;amp;source=web&amp;amp;cd=1&amp;amp;cad=rja&amp;amp;uact=8&amp;amp;ved=0ahUKEwjmx4eRgurWAhWE7SYKHS_gBqoQFggmMAA&amp;amp;url=https%3A%2F%2Fwww.microsoft.com%2Fen-us%2Fdownload%2Fdetails.aspx%3Fid%3D7593&amp;amp;usg=AOvVaw2_3XRGqDBwqs233EoTgBTa&quot;&gt;download SSMS 2008&lt;/a&gt;)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Opening Web Matrix and navigating to &lt;strong&gt;Databases&lt;/strong&gt; from the left navigation, select &lt;strong&gt;bakery.sdf&lt;/strong&gt; and on the ribbon select &lt;strong&gt;Migrate&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-17.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: you need SQL Server installed locally for this to work. Express works fine (is what I used)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click &lt;strong&gt;OK&lt;/strong&gt; and Web Matrix will automatically migrate the data.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-18.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-19.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;create-a-sql-project&quot;&gt;Create a SQL Project&lt;/h2&gt;
+
+&lt;p&gt;We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system.&lt;/p&gt;
+
+&lt;p&gt;To create the project, right click on the Visual Studio solution, hover on &lt;strong&gt;Add&lt;/strong&gt; and select &lt;strong&gt;New Project&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-20.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Select &lt;strong&gt;SQL Server&lt;/strong&gt; from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern &lt;strong&gt;4.6.2&lt;/strong&gt;. Select the &lt;strong&gt;SQL Server Database Project&lt;/strong&gt; template, and name the project &lt;strong&gt;Database&lt;/strong&gt;. Click OK to scaffold out the project.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-21.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the &lt;strong&gt;Database&lt;/strong&gt; project, selecting &lt;strong&gt;Import&lt;/strong&gt; and clicking on &lt;strong&gt;Database&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-22.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In the Import Database wizard, we need to configure a connection the local SQL instance. Click &lt;strong&gt;Select Connection&lt;/strong&gt; and configure &lt;strong&gt;Server Name&lt;/strong&gt; to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the &lt;strong&gt;bakery&lt;/strong&gt; database (the DB name that was setup earlier in the SQL instance) and click &lt;strong&gt;Connect&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-23.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Back on the Import Database wizard, click &lt;strong&gt;Start&lt;/strong&gt; to begin the import process and watch the Summary screen complete. Click &lt;strong&gt;Finish&lt;/strong&gt; to close the wizard.&lt;/p&gt;
+
+&lt;p&gt;The Database Project now has a folder named &lt;strong&gt;dbo&lt;/strong&gt;. Expand it and open &lt;strong&gt;Products.sql&lt;/strong&gt;. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-24.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process.  To use this schema in a Windows container, we will build the Project into a &lt;code class=&quot;highlighter-rouge&quot;&gt;.dacpac&lt;/code&gt; file and import the file into a container.&lt;/p&gt;
+
+&lt;h2 id=&quot;create-a-sql-server-container&quot;&gt;Create a SQL Server Container&lt;/h2&gt;
+
+&lt;p&gt;Microsoft maintains a set of Docker Containers for &lt;a href=&quot;https://hub.docker.com/r/microsoft/mssql-server-linux/&quot;&gt;mssql-server-linx&lt;/a&gt;, &lt;a href=&quot;https://hub.docker.com/r/microsoft/mssql-server-windows-developer/&quot;&gt;mssql-server-windows-developer&lt;/a&gt;, and &lt;a href=&quot;https://hub.docker.com/r/microsoft/mssql-server-windows-express/&quot;&gt;mssql-server-windows-express&lt;/a&gt;, and &lt;a href=&quot;https://hub.docker.com/r/microsoft/mssql-server-windows/&quot;&gt;mssql-server-windows&lt;/a&gt;. These are stock images that will require us to add our own database, schema, and data.&lt;/p&gt;
+
+&lt;p&gt;The preferred approach for managing and deploying SQL Server databases is a &lt;a href=&quot;https://docs.microsoft.com/en-us/sql/relational-databases/data-tier-applications/data-tier-applications&quot;&gt;dacpac&lt;/a&gt;. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process.&lt;/p&gt;
+
+&lt;p&gt;Create a Dockerfile in the &lt;strong&gt;Database&lt;/strong&gt; project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-Dockerfile&quot;&gt;# escape=`
+
+# ================
+# Builder Image
+# ================
+# Downloads dependencies and compiles the SQL Project
+FROM microsoft/windowsservercore:10.0.14393.1715 AS builder
+SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = 'Stop';&quot;]
+
+# Install Chocolatey for headless installation of MSFT Build tooling
+RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; `
+    Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; `
+    Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force
+
+# Install Nuget and install Microsoft Data Tools
+RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; `
+    &amp;amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210
+
+# Add MSBuild to Path for easier usage
+ENV MSBUILD_PATH=&quot;C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin&quot;
+RUN $env:PATH = $env:MSBUILD_PATH + ';' + $env:PATH; `
+    [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine)
+
+# Create a folder in the image and copy over VS Project files
+WORKDIR C:\src
+COPY . .
+
+# Build project
+RUN msbuild Database.sqlproj `
+      /p:SQLDBExtensionsRefPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; `
+      /p:SqlServerRedistPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; `
+	  /p:Configuration=Release
+
+# ================
+# Database Image
+# ================
+FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715
+SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = 'Stop';&quot;]
+
+RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; `
+	Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; `
+    &amp;amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; `
+	mkdir C:\database
+
+# Copy built dacpac (from earlier build stage) and configuration scripts
+WORKDIR C:\init
+COPY --from=builder C:\src\bin\Release\Database.dacpac .
+COPY Initialize-Database.ps1 .
+COPY SampleData.sql .
+
+# Set startup command to initalize the database
+CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Two “stages” are being used in our &lt;a href=&quot;https://docs.docker.com/engine/userguide/eng-image/multistage-build/&quot;&gt;“multi-stage build”&lt;/a&gt;. The first is named “builder” and is responsible for building the Database Project into a resulting &lt;code class=&quot;highlighter-rouge&quot;&gt;.dacpac&lt;/code&gt; file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the &lt;code class=&quot;highlighter-rouge&quot;&gt;.dacpac&lt;/code&gt; file from the previous stage, and executing the deployment via the &lt;code class=&quot;highlighter-rouge&quot;&gt;Initialize-Database.ps1&lt;/code&gt; script file.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the &lt;code class=&quot;highlighter-rouge&quot;&gt;.dacpac&lt;/code&gt; file needed for database deployment.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The Dockerfile references a few files that need to be present in our Project for the &lt;strong&gt;COPY&lt;/strong&gt; statements to work. In the Database Project, create a new file for &lt;code class=&quot;highlighter-rouge&quot;&gt;Initialize-Database.ps1&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;SampleData.sql&lt;/code&gt;, then paste in the contents:&lt;/p&gt;
+
+&lt;p&gt;Initialize-Database.ps1:&lt;/p&gt;
+
+&lt;div class=&quot;language-powershell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;c1&quot;&gt;# Adapted from Microsoft's SQL Server Express sample:&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# And Docker Labs' SQL Server Lab&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# https://github.com/docker/labs/tree/master/windows/sql-server&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;Parameter&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;Mandatory&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$false&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)]&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sa_password&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# Start the service&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;Write-Verbose&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Starting SQL Server'&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;Start-Service &lt;/span&gt;MSSQL&lt;span class=&quot;se&quot;&gt;`$&lt;/span&gt;SQLEXPRESS
+
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sa_password&lt;/span&gt; -ne &lt;span class=&quot;s2&quot;&gt;&quot;_&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;Write-Verbose&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Changing SA login credentials'&lt;/span&gt;
+      &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;ALTER LOGIN sa with password='&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sa_password&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;'; ALTER LOGIN sa ENABLE;&quot;&lt;/span&gt;
+      Invoke-Sqlcmd -Query &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; -ServerInstance &lt;span class=&quot;s2&quot;&gt;&quot;.\SQLEXPRESS&quot;&lt;/span&gt; 
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# Attach data files if they exist: &lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;$mdfPath&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'c:\database\BakeryDB_Primary.mdf'&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Test-Path&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$mdfPath&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; -eq &lt;span class=&quot;nv&quot;&gt;$true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;CREATE DATABASE BakeryDB ON (FILENAME = N'&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$mdfPath&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;')&quot;&lt;/span&gt;
+      &lt;span class=&quot;nv&quot;&gt;$ldfPath&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'c:\database\BakeryDB_Primary.ldf'&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Test-Path&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$mdfPath&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; -eq &lt;span class=&quot;nv&quot;&gt;$true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+          &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;  &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;, (FILENAME = N'&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$ldfPath&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;')&quot;&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+      &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; FOR ATTACH;&quot;&lt;/span&gt;
+      &lt;span class=&quot;nb&quot;&gt;Write-Verbose&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Invoke-Sqlcmd -Query &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;$(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -ServerInstance '.\SQLEXPRESS'&quot;&lt;/span&gt;
+      Invoke-Sqlcmd -Query &lt;span class=&quot;nv&quot;&gt;$sqlcmd&lt;/span&gt; -ServerInstance &lt;span class=&quot;s2&quot;&gt;&quot;.\SQLEXPRESS&quot;&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# Deploy or upgrade the database:&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;$SqlPackagePath&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46\SqlPackage.exe'&lt;/span&gt;
+  &amp;amp; &lt;span class=&quot;nv&quot;&gt;$SqlPackagePath&lt;/span&gt;  &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /sf:Database.dacpac &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /a:Script &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /op:create.sql &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /p:CommentOutSetVarDeclarations&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /tsn:.\SQLEXPRESS &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /tdn:BakeryDB &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /tu:sa &lt;span class=&quot;se&quot;&gt;`&lt;/span&gt;
+    /tp:&lt;span class=&quot;nv&quot;&gt;$sa_password&lt;/span&gt; 
+
+&lt;span class=&quot;nv&quot;&gt;$SqlCmdVars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;DatabaseName=BakeryDB&quot;&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&quot;DefaultFilePrefix=BakeryDB&quot;&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&quot;DefaultDataPath=c:\database\&quot;&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&quot;DefaultLogPath=c:\database\&quot;&lt;/span&gt;  
+Invoke-Sqlcmd -InputFile create.sql -Variable &lt;span class=&quot;nv&quot;&gt;$SqlCmdVars&lt;/span&gt; -Verbose
+&lt;span class=&quot;nb&quot;&gt;Write-Verbose&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Deployed dacpac&quot;&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Insert sample data&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;Write-Verbose&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Inserting Sample Data&quot;&lt;/span&gt;
+Invoke-Sqlcmd -InputFile .\SampleData.sql -ServerInstance .\SQLEXPRESS
+
+&lt;span class=&quot;c1&quot;&gt;# Relay SQL event logs to Docker&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;$lastCheck&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Get-Date&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.AddSeconds&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;-2&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt; 
+      &lt;span class=&quot;nb&quot;&gt;Get-EventLog&lt;/span&gt; -LogName Application -Source &lt;span class=&quot;s2&quot;&gt;&quot;MSSQL*&quot;&lt;/span&gt; -After &lt;span class=&quot;nv&quot;&gt;$lastCheck&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;Select-Object &lt;/span&gt;TimeGenerated, EntryType, Message	 
+      &lt;span class=&quot;nv&quot;&gt;$lastCheck&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Get-Date 
+      Start-Sleep&lt;/span&gt; -Seconds 2 
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;SampleData.sql:&lt;/p&gt;
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;n&quot;&gt;USE&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BakeryDB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;GO&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;INSERT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Products&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Description&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Price&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ImageName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;VALUES&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Carrot Cake'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'A scrumptious mini-carrot cake encrusted with sliced almonds'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;99&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'carrot_cake.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Lemon Tart'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'A delicious lemon tart with fresh meringue cooked to perfection'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;99&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'lemon_tart.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Cupcakes'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Delectable vanilla and chocolate cupcakes'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;99&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'cupcakes.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Bread'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Fresh baked French-style bread'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;49&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'bread.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Pear Tart'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'A glazed pear tart topped with sliced almonds and a dash of cinnamon'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;99&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'pear_tart.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Chocolate Cake'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Rich chocolate frosting cover this chocolate lover’s dream.'&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;99&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'chocolate_cake.jpg'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;GO&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;strong&gt;SampleData.sql&lt;/strong&gt; needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click &lt;strong&gt;Properties&lt;/strong&gt;. From the Properties window, toggle the &lt;strong&gt;Build Action&lt;/strong&gt; to &lt;strong&gt;None&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-25.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the &lt;code class=&quot;highlighter-rouge&quot;&gt;./Bakery/Database&lt;/code&gt; directory.&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker build &lt;span class=&quot;nt&quot;&gt;-t&lt;/span&gt; bakery:database &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-26.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Once the build completes, test the database locally by running&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker run &lt;span class=&quot;nt&quot;&gt;--name&lt;/span&gt; dbtest &lt;span class=&quot;nt&quot;&gt;-it&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--rm&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; 1433:1433 &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;ACCEPT_EULA&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;y &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;sa_password&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;Docker123 bakery:database
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Using &lt;code class=&quot;highlighter-rouge&quot;&gt;docker run&lt;/code&gt; with the &lt;code class=&quot;highlighter-rouge&quot;&gt;-it&lt;/code&gt; flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s &lt;strong&gt;CMD&lt;/strong&gt; statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container.&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker inspect &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot;&lt;/span&gt; dbtest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Plug the IP address into SQL Server Management Studio with username &lt;strong&gt;sa&lt;/strong&gt; and password &lt;strong&gt;Docker123&lt;/strong&gt; to verify that the BakeryDB and Products table sample data was successfully generated.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-27.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application.&lt;/p&gt;
+
+&lt;h1 id=&quot;part-3-connecting-the-web-application-and-database&quot;&gt;Part 3: Connecting the Web Application and Database&lt;/h1&gt;
+
+&lt;p&gt;In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing &lt;code class=&quot;highlighter-rouge&quot;&gt;docker-compose.yml&lt;/code&gt; file.&lt;/p&gt;
+
+&lt;h2 id=&quot;extend-docker-compose&quot;&gt;Extend Docker Compose&lt;/h2&gt;
+
+&lt;p&gt;When we last left the humble &lt;code class=&quot;highlighter-rouge&quot;&gt;docker-compose.yml&lt;/code&gt; file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional &lt;strong&gt;database&lt;/strong&gt; service:&lt;/p&gt;
+
+&lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;version&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;3'&lt;/span&gt;
+
+&lt;span class=&quot;na&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;webapplication&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;image&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;webapplication&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;build&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;.\WebApplication&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;dockerfile&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;Dockerfile&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;depends_on&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;database&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;database&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;image&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;database&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;build&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;.\Database&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;dockerfile&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;Dockerfile&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;environment&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;ACCEPT_EULA=Y&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;sa_password=Docker123&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a &lt;code class=&quot;highlighter-rouge&quot;&gt;docker run&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;With the web application talking to a separate container, we need to define a Connection String for the client. Opening &lt;code class=&quot;highlighter-rouge&quot;&gt;web.config&lt;/code&gt;, paste in the &lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;connectionStrings&amp;gt;&lt;/code&gt; block into &lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;connectionStrings&amp;gt;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;&amp;lt;add&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;connectionString=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;bakery&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;providerName=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;System.Data.SqlClient&quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;/connectionStrings&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;system.web&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;compilation&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;debug=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;true&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;targetFramework=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;4.0&quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;customErrors&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;mode=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Off&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;/system.web&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;system.data&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;DbProviderFactories&amp;gt;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;&amp;lt;remove&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;invariant=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;System.Data.SqlServerCe.4.0&quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;&amp;lt;add&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;invariant=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;System.Data.SqlServerCe.4.0&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Microsoft® SQL Server® Compact 4.0&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;description=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;.NET Framework Data Provider for Microsoft SQL Server Compact&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91&quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/DbProviderFactories&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;&amp;lt;/system.data&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;name&lt;/code&gt; the same name as the “bakery” &lt;code class=&quot;highlighter-rouge&quot;&gt;.sdf&lt;/code&gt; file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;Data Source&lt;/code&gt; is set to &lt;code class=&quot;highlighter-rouge&quot;&gt;database&lt;/code&gt;, which is the name of the Service that is defined in the &lt;code class=&quot;highlighter-rouge&quot;&gt;docker-compose.yml&lt;/code&gt; file. Docker’s builtin DNS will resolve the database name for us.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of &lt;a href=&quot;https://docs.docker.com/engine/swarm/secrets/&quot;&gt;Docker Secrets&lt;/a&gt; for handling sensitive information.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;whats-up-bakery&quot;&gt;What’s up, Bakery&lt;/h2&gt;
+
+&lt;p&gt;With the docker-compose file polished up we can launch both Services with a simple &lt;code class=&quot;highlighter-rouge&quot;&gt;docker-compose up&lt;/code&gt; from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a &lt;code class=&quot;highlighter-rouge&quot;&gt;docker system prune -f&lt;/code&gt; to remove dangling images and volumes.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Note that the VS Tools for Docker setup several compose files, which we can stack with multiple &lt;code class=&quot;highlighter-rouge&quot;&gt;-f&lt;/code&gt; flags.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker-compose &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; .&lt;span class=&quot;se&quot;&gt;\d&lt;/span&gt;ocker-compose.yml &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; .&lt;span class=&quot;se&quot;&gt;\d&lt;/span&gt;ocker-compose.override.yml up &lt;span class=&quot;nt&quot;&gt;--build&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--force-recreate&lt;/span&gt;
+
+docker inspect &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot;&lt;/span&gt; bakery_webapplication_1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;With the IP address from the &lt;code class=&quot;highlighter-rouge&quot;&gt;docker inspect&lt;/code&gt; statement, open the running Web Application in a browser tab. At this point we could likely delete the entire &lt;code class=&quot;highlighter-rouge&quot;&gt;.sdf&lt;/code&gt; file from the solution, but as a sanity check I grabbed the IP address for the database (also via &lt;code class=&quot;highlighter-rouge&quot;&gt;docker inspect&lt;/code&gt;) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/10/webmatrix-28.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;wrap-up&quot;&gt;Wrap Up&lt;/h1&gt;
+
+&lt;p&gt;Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems.&lt;/p&gt;
+
+&lt;p&gt;For more information, please see the &lt;a href=&quot;https://github.com/docker/labs/tree/master/windows/sql-server&quot;&gt;SQL Server Lab&lt;/a&gt; on GitHub, which heavily influenced this post.&lt;/p&gt;
+
+&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Web Matrix is a code editor that has been around for a very long time and will [sadly] reach end of life on November 1, 2017. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it. Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface. Pre-Requisites Docker for Windows Visual Studio 2017 Community Edition (or similar) SQL Server Express (or better) running locally Install Web Matrix Web Matrix 3.0 can be installed via the Web Platform Installer. Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!). After installing, start the Web Matrix application. Part 1: The Web Application Create a sample Bakery application When Web Matrix is first started, you are greeted with a few options. For our purposes today, select New and Template Gallery. The Template Gallery contains several options. Select the Bakery template tile, and name the site Bakery. Feel free to try this same exercise with the Photo Gallery or Personal Site templates Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies. Once the solution is visible, click Run from the top left corner of the ribbon to launch the application in a browser. Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired back in 2012 for Outlook.com. Check out Order.cshtml: With the application generated and running, let’s setup a Visual Studio solution for easier management. Application files should be located at C:\Users\&amp;lt;your username&amp;gt;\Documents\My Web Sites Configure the application for Visual Studio Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click Visual Studio from the ribbon bar. I have Visual Studio 2017 Community edition installed, but any recent-ish version of VS should work. Visual Studio then opens, with a VS Solution and Project generated with our code. Hit F5 to enter debug mode, and you should see the same web application in the browser as before. In File Explorer, we have a bit of a mismatch. Our original files are located at C:\Users\&amp;lt;your username&amp;gt;\Documents\My Web Sites, but our VS Solution is located at C:\Users\&amp;lt;your username&amp;gt;\Documents\WebMatrix Solutions\Projects. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step. Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward. Close the open Solution in Visual Studio by selecting File -&amp;gt; Close. Then select File -&amp;gt; New Project, naming the Solution Bakery and selecting the ASP.NET Empty Web Application template from the Installed Visual C# web templates. Be sure to also select .NET Framework 4 from the New Project’s dropdown. This was found from the left-hand navigation bar of Site –&amp;gt; Settings –&amp;gt; Select .NET Version to see that it is configured to use .NET 4. Once Visual Studio scaffolds out our Solution and Project, delete web.config since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening C:\Users\steven\Documents\visual studio 2017\Projects\Bakery\WebApplication and pasting in all files from C:\Users\steven\Documents\My Web Sites\Bakery. Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select Add -&amp;gt; Existing Item Then select all items in your Project’s folder (except for the existing .csproj Project FIle) and select Add. Now in Visual Studio, all files are present. Hit F5 to again ensure that the Web Application loads as expected in a browser window. That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing! Docker-ize the Application Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the Visual Studio tools for Docker. Right-click on the WebApplication project, select Add, and click Docker Support. The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit F5 to launch a new debugging session you’ll likely meet this lovely screen: With an error saying: System.Data.SqlServerCe.SqlCeException occurred HResult=0x80004005 Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\inetpub\wwwroot\App_Data\bakery.sdf ] Source=SQL Server Compact ADO.NET Data Provider StackTrace: &amp;lt;Cannot evaluate the exception stack trace&amp;gt; “The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with Elton Stoneman’s help (his new book is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile. Open the Dockerfile that was auto-generated for us by the VS Tools for Docker: FROM microsoft/aspnet:4.7 ARG source WORKDIR /inetpub/wwwroot COPY ${source:-obj/Docker/publish} . Update the Dockerfile with a new RUN statement and a fresh, non-IIS default working directory: FROM microsoft/aspnet:4.7 ARG source WORKDIR /web-app RUN Remove-Website -Name 'Default Web Site'; \ Set-ItemProperty IIS:\AppPools\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \ New-Website -Name 'web-app' -Port 80 -PhysicalPath 'C:\web-app' -ApplicationPool 'DefaultAppPool' COPY ${source:-obj/Docker/publish} . To avoid any insertion of the tooling’s debugging system, switch the Configuration to Release, and hit CTRL-F5 to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s entrypoint. Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker: Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container: docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; &amp;lt;your container name&amp;gt; There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application. Part 2: The Database Externalize the database The Bakery appplication is using Microsoft SQL Server Compact (SQL CE), a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single .sdf file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an official image on Docker Hub, but first we need to get our existing product catalog migrated. Opening SQL Server Management Studio 17, I had expected to be able to migrate my .sdf database to a format that would work with SQL Server (or at last generate a .sql file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance. There are numerous 3rd party tools for getting data out of a SQL CE file if Web Matrix isn’t an option (or just download SSMS 2008) Opening Web Matrix and navigating to Databases from the left navigation, select bakery.sdf and on the ribbon select Migrate Note: you need SQL Server installed locally for this to work. Express works fine (is what I used) Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click OK and Web Matrix will automatically migrate the data. Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present. Create a SQL Project We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system. To create the project, right click on the Visual Studio solution, hover on Add and select New Project Select SQL Server from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern 4.6.2. Select the SQL Server Database Project template, and name the project Database. Click OK to scaffold out the project. Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the Database project, selecting Import and clicking on Database. In the Import Database wizard, we need to configure a connection the local SQL instance. Click Select Connection and configure Server Name to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the bakery database (the DB name that was setup earlier in the SQL instance) and click Connect. Back on the Import Database wizard, click Start to begin the import process and watch the Summary screen complete. Click Finish to close the wizard. The Database Project now has a folder named dbo. Expand it and open Products.sql. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file. Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process. To use this schema in a Windows container, we will build the Project into a .dacpac file and import the file into a container. Create a SQL Server Container Microsoft maintains a set of Docker Containers for mssql-server-linx, mssql-server-windows-developer, and mssql-server-windows-express, and mssql-server-windows. These are stock images that will require us to add our own database, schema, and data. The preferred approach for managing and deploying SQL Server databases is a dacpac. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process. Create a Dockerfile in the Database project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following: # escape=` # ================ # Builder Image # ================ # Downloads dependencies and compiles the SQL Project FROM microsoft/windowsservercore:10.0.14393.1715 AS builder SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = 'Stop';&quot;] # Install Chocolatey for headless installation of MSFT Build tooling RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; ` Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force # Install Nuget and install Microsoft Data Tools RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp;amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210 # Add MSBuild to Path for easier usage ENV MSBUILD_PATH=&quot;C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin&quot; RUN $env:PATH = $env:MSBUILD_PATH + ';' + $env:PATH; ` [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine) # Create a folder in the image and copy over VS Project files WORKDIR C:\src COPY . . # Build project RUN msbuild Database.sqlproj ` /p:SQLDBExtensionsRefPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:SqlServerRedistPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:Configuration=Release # ================ # Database Image # ================ FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715 SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = 'Stop';&quot;] RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp;amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; ` mkdir C:\database # Copy built dacpac (from earlier build stage) and configuration scripts WORKDIR C:\init COPY --from=builder C:\src\bin\Release\Database.dacpac . COPY Initialize-Database.ps1 . COPY SampleData.sql . # Set startup command to initalize the database CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening: Two “stages” are being used in our “multi-stage build”. The first is named “builder” and is responsible for building the Database Project into a resulting .dacpac file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files. The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the .dacpac file from the previous stage, and executing the deployment via the Initialize-Database.ps1 script file. By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the .dacpac file needed for database deployment. The Dockerfile references a few files that need to be present in our Project for the COPY statements to work. In the Database Project, create a new file for Initialize-Database.ps1 and SampleData.sql, then paste in the contents: Initialize-Database.ps1: # Adapted from Microsoft's SQL Server Express sample: # https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1 # And Docker Labs' SQL Server Lab # https://github.com/docker/labs/tree/master/windows/sql-server param( [Parameter(Mandatory=$false)] [string]$sa_password) # Start the service Write-Verbose 'Starting SQL Server' Start-Service MSSQL`$SQLEXPRESS if ($sa_password -ne &quot;_&quot;) { Write-Verbose 'Changing SA login credentials' $sqlcmd = &quot;ALTER LOGIN sa with password='$sa_password'; ALTER LOGIN sa ENABLE;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Attach data files if they exist: $mdfPath = 'c:\database\BakeryDB_Primary.mdf' if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;CREATE DATABASE BakeryDB ON (FILENAME = N'$mdfPath')&quot; $ldfPath = 'c:\database\BakeryDB_Primary.ldf' if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;$sqlcmd, (FILENAME = N'$ldfPath')&quot; } $sqlcmd = &quot;$sqlcmd FOR ATTACH;&quot; Write-Verbose &quot;Invoke-Sqlcmd -Query $($sqlcmd) -ServerInstance '.\SQLEXPRESS'&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Deploy or upgrade the database: $SqlPackagePath = 'C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46\SqlPackage.exe' &amp;amp; $SqlPackagePath ` /sf:Database.dacpac ` /a:Script ` /op:create.sql ` /p:CommentOutSetVarDeclarations=true ` /tsn:.\SQLEXPRESS ` /tdn:BakeryDB ` /tu:sa ` /tp:$sa_password $SqlCmdVars = &quot;DatabaseName=BakeryDB&quot;, &quot;DefaultFilePrefix=BakeryDB&quot;, &quot;DefaultDataPath=c:\database\&quot;, &quot;DefaultLogPath=c:\database\&quot; Invoke-Sqlcmd -InputFile create.sql -Variable $SqlCmdVars -Verbose Write-Verbose &quot;Deployed dacpac&quot; # Insert sample data Write-Verbose &quot;Inserting Sample Data&quot; Invoke-Sqlcmd -InputFile .\SampleData.sql -ServerInstance .\SQLEXPRESS # Relay SQL event logs to Docker $lastCheck = (Get-Date).AddSeconds(-2) while ($true) { Get-EventLog -LogName Application -Source &quot;MSSQL*&quot; -After $lastCheck | Select-Object TimeGenerated, EntryType, Message $lastCheck = Get-Date Start-Sleep -Seconds 2 } SampleData.sql: USE [BakeryDB] GO INSERT INTO [dbo].[Products] ([Name] ,[Description] ,[Price] ,[ImageName]) VALUES ('Carrot Cake' ,'A scrumptious mini-carrot cake encrusted with sliced almonds' ,8.99 ,'carrot_cake.jpg'), ('Lemon Tart' ,'A delicious lemon tart with fresh meringue cooked to perfection' ,9.99 ,'lemon_tart.jpg'), ('Cupcakes' ,'Delectable vanilla and chocolate cupcakes' ,5.99 ,'cupcakes.jpg'), ('Bread' ,'Fresh baked French-style bread' ,1.49 ,'bread.jpg'), ('Pear Tart' ,'A glazed pear tart topped with sliced almonds and a dash of cinnamon' ,5.99 ,'pear_tart.jpg'), ('Chocolate Cake' ,'Rich chocolate frosting cover this chocolate lover’s dream.' ,8.99 ,'chocolate_cake.jpg') GO The SampleData.sql needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click Properties. From the Properties window, toggle the Build Action to None. With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the ./Bakery/Database directory. docker build -t bakery:database . Once the build completes, test the database locally by running docker run --name dbtest -it --rm -p 1433:1433 -e ACCEPT_EULA=y -e sa_password=Docker123 bakery:database Using docker run with the -it flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s CMD statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container. docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; dbtest Plug the IP address into SQL Server Management Studio with username sa and password Docker123 to verify that the BakeryDB and Products table sample data was successfully generated. We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application. Part 3: Connecting the Web Application and Database In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing docker-compose.yml file. Extend Docker Compose When we last left the humble docker-compose.yml file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional database service: version: '3' services: webapplication: image: webapplication build: context: .\WebApplication dockerfile: Dockerfile depends_on: - database database: image: database build: context: .\Database dockerfile: Dockerfile environment: - ACCEPT_EULA=Y - sa_password=Docker123 We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a docker run. With the web application talking to a separate container, we need to define a Connection String for the client. Opening web.config, paste in the &amp;lt;connectionStrings&amp;gt; block into &amp;lt;configuration&amp;gt;. &amp;lt;configuration&amp;gt; &amp;lt;connectionStrings&amp;gt; &amp;lt;add connectionString=&quot;Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123&quot; name=&quot;bakery&quot; providerName=&quot;System.Data.SqlClient&quot; /&amp;gt; &amp;lt;/connectionStrings&amp;gt; &amp;lt;system.web&amp;gt; &amp;lt;compilation debug=&quot;true&quot; targetFramework=&quot;4.0&quot; /&amp;gt; &amp;lt;customErrors mode=&quot;Off&quot;/&amp;gt; &amp;lt;/system.web&amp;gt; &amp;lt;system.data&amp;gt; &amp;lt;DbProviderFactories&amp;gt; &amp;lt;remove invariant=&quot;System.Data.SqlServerCe.4.0&quot; /&amp;gt; &amp;lt;add invariant=&quot;System.Data.SqlServerCe.4.0&quot; name=&quot;Microsoft® SQL Server® Compact 4.0&quot; description=&quot;.NET Framework Data Provider for Microsoft SQL Server Compact&quot; type=&quot;System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91&quot; /&amp;gt; &amp;lt;/DbProviderFactories&amp;gt; &amp;lt;/system.data&amp;gt; &amp;lt;/configuration&amp;gt; The name the same name as the “bakery” .sdf file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries. The Data Source is set to database, which is the name of the Service that is defined in the docker-compose.yml file. Docker’s builtin DNS will resolve the database name for us. Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of Docker Secrets for handling sensitive information. What’s up, Bakery With the docker-compose file polished up we can launch both Services with a simple docker-compose up from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a docker system prune -f to remove dangling images and volumes. Note that the VS Tools for Docker setup several compose files, which we can stack with multiple -f flags. docker-compose -f .\docker-compose.yml -f .\docker-compose.override.yml up --build --force-recreate docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; bakery_webapplication_1 With the IP address from the docker inspect statement, open the running Web Application in a browser tab. At this point we could likely delete the entire .sdf file from the solution, but as a sanity check I grabbed the IP address for the database (also via docker inspect) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected. Wrap Up Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems. For more information, please see the SQL Server Lab on GitHub, which heavily influenced this post. Thanks!</summary></entry><entry><title type="html">Moving an Access Database into a Windows Container with Docker</title><link href="http://localhost:4000/2017/10/05/access-database-windows-container/" rel="alternate" type="text/html" title="Moving an Access Database into a Windows Container with Docker" /><published>2017-10-05T13:08:10-04:00</published><updated>2017-10-05T13:08:10-04:00</updated><id>http://localhost:4000/2017/10/05/access-database-windows-container</id><content type="html" xml:base="http://localhost:4000/2017/10/05/access-database-windows-container/">&lt;h1 id=&quot;moving-an-access-database-into-a-windows-container-with-docker&quot;&gt;Moving an Access Database into a Windows Container with Docker&lt;/h1&gt;
+
+&lt;p&gt;At Docker we are seeing a cavalcade of customers finding value in containers not just for greenfield microservice applications, but also as a key to modernizing legacy applications. One recent conversation involved a question: can a legacy line of business application that uses an Access database be transitioned to a container? Having not touched an Access database in many years, I set out to find an answer.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-database&quot;&gt;The Database&lt;/h2&gt;
+
+&lt;p&gt;Needing a sample database that would be representative of an older application, I fired up Access 2017 and created a new database from the Northwind Traders template. This sample database started up as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.accdb&lt;/code&gt; file, the file format that Access moved to back in 2007. I wanted to lean more oldschool, so attempted an export to the older &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; format. Unfortunately, Access refused the operation, citing the new features in-use that were not backwards compatible to previous formats.&lt;/p&gt;
+
+&lt;p&gt;With Northwind appearing to be a dead end, I looked online for a second sample database known to SQL aficionados as AdventureWorks. &lt;a href=&quot;https://adventureworksaccess.codeplex.com/&quot;&gt;Codeplex&lt;/a&gt; had a copy, and although it downloaded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.aacdb&lt;/code&gt;, Access easily exported it as a &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; by using the &lt;strong&gt;Access 2000 Database&lt;/strong&gt; option.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image001.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;The .mdb file size is over 100MB, which makes GitHub will barf. To shave off some space, I trimmed several rows out of the &lt;code class=&quot;highlighter-rouge&quot;&gt;Sales_SalesOrderDetail&lt;/code&gt; table&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;the-web-application&quot;&gt;The Web Application&lt;/h2&gt;
+
+&lt;p&gt;With a database secured, it was time to stand up a web application to interface with the data. My goal was to create a proof of concept web application that communicate with the database and displays data via a browser.&lt;/p&gt;
+
+&lt;p&gt;Firing up Visual Studio 2017 Community Edition, I created a solution based on the web application template. Wanting to be as legacy-esque as possible, I set the .NET version to a stately 2.0.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image002.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Once the solution provisioned, I created a &lt;code class=&quot;highlighter-rouge&quot;&gt;default.aspx&lt;/code&gt; web form and an &lt;code class=&quot;highlighter-rouge&quot;&gt;App_Data&lt;/code&gt; folder. The &lt;code class=&quot;highlighter-rouge&quot;&gt;AdventureWorks.mdb&lt;/code&gt; file went into App_Data, and I scaffolded out a simple page in the aspx file by importing the Bootstrap library and adding a heading.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/content/images/2017/09/image003.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now came the fun part: plumbing the database into the web app. The first path taken invovled opening the Server Explorer and using the connection wizard to setup a connnection to an Access DB. This turns out to use &lt;a href=&quot;https://en.wikipedia.org/wiki/Microsoft_Jet_Database_Engine&quot;&gt;JET&lt;/a&gt;, which was long superceed by ACE. Another downside to using JET was that while it worked, I had to install an Office Distributable package. This package was an &lt;code class=&quot;highlighter-rouge&quot;&gt;.exe&lt;/code&gt; wizard with a UI, and I was nervous about getting it to run in headless container environment (where’s an MSI when you need one?) The customer was also using ODBC today, so I stepped back and re-implemented the connection via an ODBC connector.&lt;/p&gt;
+
+&lt;p&gt;ODBC has several ways of configuration, and the Visual Studio wizard took me down a path of using a system-level DSN. This DSN securely maps the location of the database file and ODBC driver settings into a credential that my application can use. After setting the world’s smallest &lt;code class=&quot;highlighter-rouge&quot;&gt;ConnectionString&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;web.config&lt;/code&gt; I was off to the races. Running locally, I was able to see a table of data pulled from the Access database file.&lt;/p&gt;
+
+&lt;p&gt;With my simple application working on my local laptop it was time to container-ize.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-container&quot;&gt;The Container&lt;/h2&gt;
+
+&lt;p&gt;Creating a container involves crafting a Dockerfile. As a base image, &lt;code class=&quot;highlighter-rouge&quot;&gt;microsoft/windowsservernano&lt;/code&gt; is a lighter weight base, however legacy applications rely on a myriad of features and capabilities that are simply not possible in nano. For this app, I instead turned to &lt;code class=&quot;highlighter-rouge&quot;&gt;microsoft/aspnet:4.6.2&lt;/code&gt;, based on the larger and more robust Windows Server Core.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;The &lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/core/docker/visual-studio-tools-for-docker&quot;&gt;Visual Studio Tools for Docker&lt;/a&gt; are terrific for setting a debugging environment within VS for testing containers. However, I find it overly complex for simpler projects, and the heavy use of build time arguments that are necessary for debugging make greatly increases the complexity of moving the project into a CI/CD pipeline. Instead of auto-generating the Dockerfile via the Tools, I instead opted to handcraft my own&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;With the &lt;code class=&quot;highlighter-rouge&quot;&gt;FROM&lt;/code&gt; statement ready to go, it was time to configure the inside of the container to match my local environment. This requires a few steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Configure the ODBC DSN with the local of the &lt;code class=&quot;highlighter-rouge&quot;&gt;.mdb&lt;/code&gt; file and driver. This was accomplished with a bit of PowerShell, and was far easier than I initally expected.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Insert my VS solution code into the pre-determined IIS location of &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\inetpub\wwwroot&lt;/code&gt; as &lt;a href=&quot;https://hub.docker.com/r/microsoft/aspnet/&quot;&gt;instruced&lt;/a&gt; by the aspnet image.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;However, after adding the steps, building the image, and starting a container, I was met with an ugly error screen.&lt;/p&gt;
+
+&lt;p&gt;StackOverflow informed me that this was likely due to a mismatch in running a 64-bit application with the 32-bit ODBC driver. When I initially created the application, VS by default used the 32-bit version of IIS Express (hence no issue), whereas the aspnet image was defaulting to using 64-bit IIS. Back in VS, I set it to use 64-bit IIS Express, and confirmed that I saw the same error - this issue was realted to 32 vs. 64 bit settings.&lt;/p&gt;
+
+&lt;p&gt;The solution was to adjust the IIS Application Pool within the container to run a 32-bit application. This again was a snippet of PowerShell, which enabled the feature. After a quick re-build and re-creation of a container, I was pleased to see the sample application running as expected.&lt;/p&gt;
+
+&lt;p&gt;Dockerfile Used:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-Dockerfile&quot;&gt;# escape=`
+FROM microsoft/aspnet:4.6.2
+
+# Configure the IIS Application Pool for 32-bit applications
+RUN C:\Windows\System32\inetsrv\appcmd set apppool /apppool.name:DefaultAppPool /enable32bitapponwin64:true;
+
+# Create a new ODBC DSN mapped to the database file
+RUN	Add-OdbcDsn -Name &quot;AWDB&quot; `
+	-DriverName &quot;'Microsoft Access Driver (*.mdb)'&quot; `
+	-Platform &quot;32-bit&quot; `
+	-DsnType &quot;System&quot; `
+	-SetPropertyValue 'Dbq=C:\inetpub\wwwroot\App_Data\AdventureWorks.mdb' `
+	-PassThru
+
+# Copy files into container
+ADD . /inetpub/wwwroot
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;the-wrap-up&quot;&gt;The Wrap Up&lt;/h2&gt;
+
+&lt;p&gt;This [incredibly] simple application imparted several nuggets of wisdom related to the containerization of legacy applications.&lt;/p&gt;
+
+&lt;p&gt;First, the “hello world” examples are nice for a quick demonstration, but real-world apps are going to take some finese and adjustments to the base images. Be prepared to track down PowerShell commandlets and overloads that may not be immediately obvious.&lt;/p&gt;
+
+&lt;p&gt;Second, there are many ways to skin a cat and those ways have likely evolved between when the app was created and today. There were 3+ methods of talking to an Access database, each with varying pros/cons, histories, and present-day supportability concerns.&lt;/p&gt;
+
+&lt;p&gt;Finally, erring on the side of configuration via PowerShell rather than an MSI or other installing simplifies the creation and maintenance of images. This will not always be an option, but I greatly preferred PS to touching a ~10 year old installer .exe.&lt;/p&gt;
+
+&lt;p&gt;Full Visual Studio solution is available on &lt;a href=&quot;https://github.com/stevenfollis/accessdb-windows-container&quot;&gt;GitHub&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Moving an Access Database into a Windows Container with Docker</summary></entry><entry><title type="html">Node + Express + AzureAD + Yeoman with generator-express-azuread</title><link href="http://localhost:4000/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/" rel="alternate" type="text/html" title="Node + Express + AzureAD + Yeoman with generator-express-azuread" /><published>2017-06-23T09:45:10-04:00</published><updated>2017-06-23T09:45:10-04:00</updated><id>http://localhost:4000/2017/06/23/express-azuread-yeoman-with-generator-express-azuread</id><content type="html" xml:base="http://localhost:4000/2017/06/23/express-azuread-yeoman-with-generator-express-azuread/">&lt;p&gt;Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent &lt;a href=&quot;http://passportjs.org/&quot;&gt;PassportJS&lt;/a&gt; middleware. The AzureAD team maintains an official Passport “strategy” called &lt;a href=&quot;https://github.com/AzureAD/passport-azure-ad&quot;&gt;passport-azure-ad&lt;/a&gt;, making it easy to secure Node applications with Azure Active Directory.&lt;/p&gt;
 
 &lt;blockquote&gt;
   &lt;p&gt;Need a quick ‘n dirty way to secure your web app? Check out the &lt;a href=&quot;https://docs.microsoft.com/en-us/azure/app-service/app-service-authentication-overview&quot;&gt;“EasyAuth”&lt;/a&gt; feature of App Service for a no-code change way of standing up an authentication barrier in front of your app. Even works with social identify providers such as FB!&lt;/p&gt;
@@ -99,7 +692,7 @@
 
 &lt;blockquote&gt;
   &lt;p&gt;Be sure to check out all the code snippets at &lt;a href=&quot;https://azure.microsoft.com/en-us/resources/samples/?service=active-directory&quot;&gt;Azure.com&lt;/a&gt; for more AzureAD goodness.&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent PassportJS middleware. The AzureAD team maintains an official Passport “strategy” called passport-azure-ad, making it easy to secure Node applications with Azure Active Directory.</summary></entry><entry><title type="html">“Not Hotdog” from the Silicon Valley TV show with Cognitive Services + Bot Framework</title><link href="http://stevenfollis.com/2017/06/02/nothotdog/" rel="alternate" type="text/html" title="&quot;Not Hotdog&quot; from the Silicon Valley TV show with Cognitive Services + Bot Framework" /><published>2017-06-02T17:25:53-05:00</published><updated>2017-06-02T17:25:53-05:00</updated><id>http://stevenfollis.com/2017/06/02/nothotdog</id><content type="html" xml:base="http://stevenfollis.com/2017/06/02/nothotdog/">&lt;p&gt;I’m a huge fan of the television show &lt;a href=&quot;https://en.wikipedia.org/wiki/Silicon_Valley_(TV_series)&quot;&gt;Silicon Valley&lt;/a&gt; on HBO. It follows the lives of a startup company in California, but also is wicked funny.&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">Authorization, while always essential, is rarely fun. An Express app can be up and running in the Azure App Service in seconds, but any real-world application needs to be locked down to a particular set of intended users. In the Node world, authentication is handled via the excellent PassportJS middleware. The AzureAD team maintains an official Passport “strategy” called passport-azure-ad, making it easy to secure Node applications with Azure Active Directory.</summary></entry><entry><title type="html">“Not Hotdog” from the Silicon Valley TV show with Cognitive Services + Bot Framework</title><link href="http://localhost:4000/2017/06/02/nothotdog/" rel="alternate" type="text/html" title="&quot;Not Hotdog&quot; from the Silicon Valley TV show with Cognitive Services + Bot Framework" /><published>2017-06-02T18:25:53-04:00</published><updated>2017-06-02T18:25:53-04:00</updated><id>http://localhost:4000/2017/06/02/nothotdog</id><content type="html" xml:base="http://localhost:4000/2017/06/02/nothotdog/">&lt;p&gt;I’m a huge fan of the television show &lt;a href=&quot;https://en.wikipedia.org/wiki/Silicon_Valley_(TV_series)&quot;&gt;Silicon Valley&lt;/a&gt; on HBO. It follows the lives of a startup company in California, but also is wicked funny.&lt;/p&gt;
 
 &lt;p&gt;A few weeks ago I was watching S04E04 when a funny app was shown:&lt;/p&gt;
 
@@ -132,7 +725,7 @@
 
 &lt;blockquote&gt;
   &lt;p&gt;Code is hanging out on &lt;a href=&quot;https://github.com/stevenfollis/nothotdog&quot;&gt;GitHub&lt;/a&gt;&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">I’m a huge fan of the television show Silicon Valley on HBO. It follows the lives of a startup company in California, but also is wicked funny.</summary></entry><entry><title type="html">Monitoring an Azure IoT Gateway with a Socket.io Module</title><link href="http://stevenfollis.com/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io/" rel="alternate" type="text/html" title="Monitoring an Azure IoT Gateway with a Socket.io Module" /><published>2017-05-08T09:59:51-05:00</published><updated>2017-05-08T09:59:51-05:00</updated><id>http://stevenfollis.com/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io</id><content type="html" xml:base="http://stevenfollis.com/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io/">&lt;p&gt;Internet of Things (IoT) solutions involve significant quantities of data. When that data is all nicely sent up into a cloud (such as Azure) it is straightforward to analyze and monitor.  However, many hybrid IoT scenarios involve on-premises data that is never sent up to the cloud due to available bandwidth, cost, or data volume. We may be only sending aggregations or exceptions to the cloud, but operations teams on-prem may be wanting insight into the full data that is being generated.&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">I’m a huge fan of the television show Silicon Valley on HBO. It follows the lives of a startup company in California, but also is wicked funny.</summary></entry><entry><title type="html">Monitoring an Azure IoT Gateway with a Socket.io Module</title><link href="http://localhost:4000/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io/" rel="alternate" type="text/html" title="Monitoring an Azure IoT Gateway with a Socket.io Module" /><published>2017-05-08T10:59:51-04:00</published><updated>2017-05-08T10:59:51-04:00</updated><id>http://localhost:4000/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io</id><content type="html" xml:base="http://localhost:4000/2017/05/08/monitoring-an-azure-iot-gateway-with-socket-io/">&lt;p&gt;Internet of Things (IoT) solutions involve significant quantities of data. When that data is all nicely sent up into a cloud (such as Azure) it is straightforward to analyze and monitor.  However, many hybrid IoT scenarios involve on-premises data that is never sent up to the cloud due to available bandwidth, cost, or data volume. We may be only sending aggregations or exceptions to the cloud, but operations teams on-prem may be wanting insight into the full data that is being generated.&lt;/p&gt;
 
 &lt;p&gt;One way to monitor on-prem data is to leverage the &lt;a href=&quot;https://azure.microsoft.com/en-us/services/iot-hub/iot-gateway-sdk/&quot;&gt;Azure IoT Gateway&lt;/a&gt; that may be already in-place.  The IoT GW provides a structured approach to consuming data on-prem, processing the data, and uploading the data to a cloud service (such as an &lt;a href=&quot;https://azure.microsoft.com/en-us/services/iot-hub/&quot;&gt;Azure IoT Hub&lt;/a&gt;) via a module pattern.  These modules can be devloped in Java, C#, Node.js, or C (or mix ‘n match).&lt;/p&gt;
 
@@ -500,7 +1093,7 @@
 
 &lt;p&gt;This module has been published on &lt;a href=&quot;https://www.npmjs.com/package/iot-gateway-socketio&quot;&gt;npm&lt;/a&gt; for ease of use and is available on &lt;a href=&quot;https://github.com/stevenfollis/iot-gateway-socketio&quot;&gt;GitHub&lt;/a&gt; (including a complete &lt;a href=&quot;https://github.com/stevenfollis/iot-gateway-socketio/tree/master/sample&quot;&gt;sample&lt;/a&gt;).&lt;/p&gt;
 
-&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Internet of Things (IoT) solutions involve significant quantities of data. When that data is all nicely sent up into a cloud (such as Azure) it is straightforward to analyze and monitor. However, many hybrid IoT scenarios involve on-premises data that is never sent up to the cloud due to available bandwidth, cost, or data volume. We may be only sending aggregations or exceptions to the cloud, but operations teams on-prem may be wanting insight into the full data that is being generated.</summary></entry><entry><title type="html">Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)</title><link href="http://stevenfollis.com/2016/12/12/continuous-integration-ci-for-arm-templates/" rel="alternate" type="text/html" title="Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)" /><published>2016-12-12T05:07:34-06:00</published><updated>2016-12-12T05:07:34-06:00</updated><id>http://stevenfollis.com/2016/12/12/continuous-integration-ci-for-arm-templates</id><content type="html" xml:base="http://stevenfollis.com/2016/12/12/continuous-integration-ci-for-arm-templates/">&lt;p&gt;The concept of &lt;a href=&quot;https://en.wikipedia.org/wiki/Continuous_integration&quot;&gt;Continuous Integration&lt;/a&gt; makes developing any piece of software infinitely more efficient and convenient.  At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?&lt;/p&gt;
+&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Internet of Things (IoT) solutions involve significant quantities of data. When that data is all nicely sent up into a cloud (such as Azure) it is straightforward to analyze and monitor. However, many hybrid IoT scenarios involve on-premises data that is never sent up to the cloud due to available bandwidth, cost, or data volume. We may be only sending aggregations or exceptions to the cloud, but operations teams on-prem may be wanting insight into the full data that is being generated.</summary></entry><entry><title type="html">Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)</title><link href="http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/" rel="alternate" type="text/html" title="Continuous Integration (CI) for Azure Resource Manager (ARM) Templates with Visual Studio Team Services (VSTS)" /><published>2016-12-12T06:07:34-05:00</published><updated>2016-12-12T06:07:34-05:00</updated><id>http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates</id><content type="html" xml:base="http://localhost:4000/2016/12/12/continuous-integration-ci-for-arm-templates/">&lt;p&gt;The concept of &lt;a href=&quot;https://en.wikipedia.org/wiki/Continuous_integration&quot;&gt;Continuous Integration&lt;/a&gt; makes developing any piece of software infinitely more efficient and convenient.  At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?&lt;/p&gt;
 
 &lt;p&gt;This was the question that arose on a recent project that included an ARM Template that needed to be deployed in multiple regions.  Regular changes were being made to the template file that were committed to the repository without any real checks - it took a full deployment to determine if the template would successfully deploy or fail miserably. To smooth out this process, we took the ARM Template and used a &lt;a href=&quot;https://www.visualstudio.com/en-us/docs/release/author-release-definition/more-release-definition&quot;&gt;Visual Studio Team Services Release Definition&lt;/a&gt; to automate the validation of a template in a myriad of regions.&lt;/p&gt;
 
@@ -541,7 +1134,7 @@
 
 &lt;p&gt;I can see from the Deployment Status column that there was an issue with Brazil South. At this time the task does not provide verbose feedback on why the template failed to validate, but I now have enough information to focus my debugging efforts.&lt;/p&gt;
 
-&lt;p&gt;The Validate endpoint does not catch 100% of issues. We ran into a scenario where a template validated, but a particular VM size was unavailable in the given region. There is no real substitute for a real deployment to ensure a template functions 100% properly, however this approach of the Validate endpoint catches a large number of issues before a deployment even occurs.&lt;/p&gt;</content><author><name></name></author><summary type="html">The concept of Continuous Integration makes developing any piece of software infinitely more efficient and convenient. At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?</summary></entry><entry><title type="html">Managing Azure Resource Manager (ARM) Template deployments with CSV files</title><link href="http://stevenfollis.com/2016/11/21/managing-arm-templates-with-csv-parameters/" rel="alternate" type="text/html" title="Managing Azure Resource Manager (ARM) Template deployments with CSV files" /><published>2016-11-21T07:56:16-06:00</published><updated>2016-11-21T07:56:16-06:00</updated><id>http://stevenfollis.com/2016/11/21/managing-arm-templates-with-csv-parameters</id><content type="html" xml:base="http://stevenfollis.com/2016/11/21/managing-arm-templates-with-csv-parameters/">&lt;p&gt;ARM Templates are great.  They allow us to provision complex solutions in a repeatable and clearly understood manner.  The parameters model enables flexible templates that can adapt to a variety of inputs, however the management of these parameter files can be cumbersome.&lt;/p&gt;
+&lt;p&gt;The Validate endpoint does not catch 100% of issues. We ran into a scenario where a template validated, but a particular VM size was unavailable in the given region. There is no real substitute for a real deployment to ensure a template functions 100% properly, however this approach of the Validate endpoint catches a large number of issues before a deployment even occurs.&lt;/p&gt;</content><author><name></name></author><summary type="html">The concept of Continuous Integration makes developing any piece of software infinitely more efficient and convenient. At a high level, CI takes a set of changes in a code repository and makes sure the changes don’t break stuff. For code that has compilation steps this is better understood, but how do we get the benefits of CI with a declarative JSON document such as an ARM Template?</summary></entry><entry><title type="html">Managing Azure Resource Manager (ARM) Template deployments with CSV files</title><link href="http://localhost:4000/2016/11/21/managing-arm-templates-with-csv-parameters/" rel="alternate" type="text/html" title="Managing Azure Resource Manager (ARM) Template deployments with CSV files" /><published>2016-11-21T08:56:16-05:00</published><updated>2016-11-21T08:56:16-05:00</updated><id>http://localhost:4000/2016/11/21/managing-arm-templates-with-csv-parameters</id><content type="html" xml:base="http://localhost:4000/2016/11/21/managing-arm-templates-with-csv-parameters/">&lt;p&gt;ARM Templates are great.  They allow us to provision complex solutions in a repeatable and clearly understood manner.  The parameters model enables flexible templates that can adapt to a variety of inputs, however the management of these parameter files can be cumbersome.&lt;/p&gt;
 
 &lt;p&gt;During the planning phase of a project, Excel is often used to chart out the required virtual machines for a given solution. Let’s take the following values, and create a solution in Azure using Azure Resource Manager deployments.&lt;/p&gt;
 
@@ -832,7 +1425,7 @@
 
 &lt;blockquote&gt;
   &lt;p&gt;Find all source code for this console application on &lt;a href=&quot;https://github.com/stevenfollis/Samples/tree/master/CSVProvisioner&quot;&gt;GitHub&lt;/a&gt;&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">ARM Templates are great. They allow us to provision complex solutions in a repeatable and clearly understood manner. The parameters model enables flexible templates that can adapt to a variety of inputs, however the management of these parameter files can be cumbersome.</summary></entry><entry><title type="html">Background image thumbnail processing with Azure Functions and NodeJS</title><link href="http://stevenfollis.com/2016/09/24/background-image-processing-with-azure-functions-and-nodejs/" rel="alternate" type="text/html" title="Background image thumbnail processing with Azure Functions and NodeJS" /><published>2016-09-24T12:06:03-05:00</published><updated>2016-09-24T12:06:03-05:00</updated><id>http://stevenfollis.com/2016/09/24/background-image-processing-with-azure-functions-and-nodejs</id><content type="html" xml:base="http://stevenfollis.com/2016/09/24/background-image-processing-with-azure-functions-and-nodejs/">&lt;p&gt;Nothing gunks up an application server faster than having to crunch images, yet image manipulation is a common tasks in today’s applications.  Let’s take thumbnail generation as an example.  Traditionally, if a user uploads an image, our application would generate the thumbnail during the upload event.  The user has to sit and wait for the operation to complete, and we have to hope the server has capacity to handle that user’s operation.  Worst case we end in errors, failed uploads, and frustrated users.&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><summary type="html">ARM Templates are great. They allow us to provision complex solutions in a repeatable and clearly understood manner. The parameters model enables flexible templates that can adapt to a variety of inputs, however the management of these parameter files can be cumbersome.</summary></entry><entry><title type="html">Background image thumbnail processing with Azure Functions and NodeJS</title><link href="http://localhost:4000/2016/09/24/background-image-processing-with-azure-functions-and-nodejs/" rel="alternate" type="text/html" title="Background image thumbnail processing with Azure Functions and NodeJS" /><published>2016-09-24T13:06:03-04:00</published><updated>2016-09-24T13:06:03-04:00</updated><id>http://localhost:4000/2016/09/24/background-image-processing-with-azure-functions-and-nodejs</id><content type="html" xml:base="http://localhost:4000/2016/09/24/background-image-processing-with-azure-functions-and-nodejs/">&lt;p&gt;Nothing gunks up an application server faster than having to crunch images, yet image manipulation is a common tasks in today’s applications.  Let’s take thumbnail generation as an example.  Traditionally, if a user uploads an image, our application would generate the thumbnail during the upload event.  The user has to sit and wait for the operation to complete, and we have to hope the server has capacity to handle that user’s operation.  Worst case we end in errors, failed uploads, and frustrated users.&lt;/p&gt;
 
 &lt;p&gt;To get around this problem, such work should be offloaded into “background tasks”, where expensive operations are handled at a later time than on the traditional initial creation event.  For thumbnail generation, the uploaded image may be placed in a queue to be processed later by a separate process.  The user can go about their business, and the background processing can be scaled independently of the front end to be better meet demand.  Everyone wins.  If you’ve ever uploaded a video to YouTube, did you wait 20 minutes with a progress bar while YouTube processed the file?  Nope, you came back 20 minutes later when it completed.  This is “eventual consistency” at work, and is a far better pattern for distributed, high scale applications.&lt;/p&gt;
 
@@ -983,7 +1576,7 @@
 &lt;p&gt;This example used a blob trigger, however we could have easily used a queue trigger instead to process incoming messages with the same NodeJS code.&lt;/p&gt;
 
 &lt;p&gt;Thanks for reading!
-SF&lt;/p&gt;</content><author><name></name></author><summary type="html">Nothing gunks up an application server faster than having to crunch images, yet image manipulation is a common tasks in today’s applications. Let’s take thumbnail generation as an example. Traditionally, if a user uploads an image, our application would generate the thumbnail during the upload event. The user has to sit and wait for the operation to complete, and we have to hope the server has capacity to handle that user’s operation. Worst case we end in errors, failed uploads, and frustrated users.</summary></entry><entry><title type="html">Monitoring Audit Logs in Slack with Event Hubs + Azure Functions</title><link href="http://stevenfollis.com/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/" rel="alternate" type="text/html" title="Monitoring Audit Logs in Slack with Event Hubs + Azure Functions" /><published>2016-05-19T14:45:35-05:00</published><updated>2016-05-19T14:45:35-05:00</updated><id>http://stevenfollis.com/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions</id><content type="html" xml:base="http://stevenfollis.com/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/">&lt;p&gt;&lt;img src=&quot;/content/images/2016/05/slack.png&quot; alt=&quot;Colors&quot; /&gt;&lt;/p&gt;
+SF&lt;/p&gt;</content><author><name></name></author><summary type="html">Nothing gunks up an application server faster than having to crunch images, yet image manipulation is a common tasks in today’s applications. Let’s take thumbnail generation as an example. Traditionally, if a user uploads an image, our application would generate the thumbnail during the upload event. The user has to sit and wait for the operation to complete, and we have to hope the server has capacity to handle that user’s operation. Worst case we end in errors, failed uploads, and frustrated users.</summary></entry><entry><title type="html">Monitoring Audit Logs in Slack with Event Hubs + Azure Functions</title><link href="http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/" rel="alternate" type="text/html" title="Monitoring Audit Logs in Slack with Event Hubs + Azure Functions" /><published>2016-05-19T15:45:35-04:00</published><updated>2016-05-19T15:45:35-04:00</updated><id>http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions</id><content type="html" xml:base="http://localhost:4000/2016/05/19/monitoring-azure-audit-logs-with-event-hubs-and-functions/">&lt;p&gt;&lt;img src=&quot;/content/images/2016/05/slack.png&quot; alt=&quot;Colors&quot; /&gt;&lt;/p&gt;
 
 &lt;p&gt;Keeping tabs on an Azure Subscription can be difficult. What’s happening in our environments?  Are operations failing?  These questions are hard enough with a handful of resources, but in a busy subscription containing hundreds of resources we can quickly be searching for needles in a haystack.&lt;/p&gt;
 
@@ -1274,7 +1867,7 @@ function sendAlert(context, alert) {
 
 &lt;p&gt;Enjoy!&lt;/p&gt;
 
-&lt;p&gt;(Oh and that was a ton of steps. Take the easy way and &lt;a href=&quot;https://github.com/stevenfollis/Samples/tree/master/AuditLogFunction&quot;&gt;download this ARM Template&lt;/a&gt; that deploys all the above infrastructure AND does a Web Deploy of the Function code. I won’t judge.)&lt;/p&gt;</content><author><name></name></author><summary type="html"></summary></entry><entry><title type="html">Deploying a Node.js API with Loopback to Azure Web Apps</title><link href="http://stevenfollis.com/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps/" rel="alternate" type="text/html" title="Deploying a Node.js API with Loopback to Azure Web Apps" /><published>2016-03-27T18:39:36-05:00</published><updated>2016-03-27T18:39:36-05:00</updated><id>http://stevenfollis.com/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps</id><content type="html" xml:base="http://stevenfollis.com/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps/">&lt;p&gt;&lt;a href=&quot;http://expressjs.com/&quot;&gt;ExpressJS&lt;/a&gt; is a terrific starting point for creating APIs with Node.js, but can quickly difficult to manage on large, complex projects.  Addressing this issue is an entire ecosystem of frameworks that has grown up around providing opinionated structure to API development, and one such framework is IBM Strongloop’s &lt;a href=&quot;http://loopback.io/&quot;&gt;Loopback&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;(Oh and that was a ton of steps. Take the easy way and &lt;a href=&quot;https://github.com/stevenfollis/Samples/tree/master/AuditLogFunction&quot;&gt;download this ARM Template&lt;/a&gt; that deploys all the above infrastructure AND does a Web Deploy of the Function code. I won’t judge.)&lt;/p&gt;</content><author><name></name></author><summary type="html"></summary></entry><entry><title type="html">Deploying a Node.js API with Loopback to Azure Web Apps</title><link href="http://localhost:4000/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps/" rel="alternate" type="text/html" title="Deploying a Node.js API with Loopback to Azure Web Apps" /><published>2016-03-27T19:39:36-04:00</published><updated>2016-03-27T19:39:36-04:00</updated><id>http://localhost:4000/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps</id><content type="html" xml:base="http://localhost:4000/2016/03/27/deploying-a-loopback-node-js-api-on-azure-web-apps/">&lt;p&gt;&lt;a href=&quot;http://expressjs.com/&quot;&gt;ExpressJS&lt;/a&gt; is a terrific starting point for creating APIs with Node.js, but can quickly difficult to manage on large, complex projects.  Addressing this issue is an entire ecosystem of frameworks that has grown up around providing opinionated structure to API development, and one such framework is IBM Strongloop’s &lt;a href=&quot;http://loopback.io/&quot;&gt;Loopback&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;Loopback is a framework for developing mature RESTful API’s in the enterprise.  You define a data model, autogenerate a slew of endpoints for that model, and then connect to a variety of backend data storage mechanisms.  It’s terrific, especially when coming from the wide open spaces of vanilla ExpressJS.&lt;/p&gt;
 
@@ -1302,45 +1895,4 @@ app.start();
 
 &lt;p&gt;If you’re looking for the Swagger definition for use with API Apps, head over to &lt;code class=&quot;highlighter-rouge&quot;&gt;/explorer/swagger.json&lt;/code&gt; and you should have the entire autogenerated schema ready for you with a bow on top.&lt;/p&gt;
 
-&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">ExpressJS is a terrific starting point for creating APIs with Node.js, but can quickly difficult to manage on large, complex projects. Addressing this issue is an entire ecosystem of frameworks that has grown up around providing opinionated structure to API development, and one such framework is IBM Strongloop’s Loopback.</summary></entry><entry><title type="html">Using Git from the command line with Visual Studio Online (VSO) and a Personal Access Token</title><link href="http://stevenfollis.com/2015/11/16/using-git-with-visual-studio-online-token/" rel="alternate" type="text/html" title="Using Git from the command line with Visual Studio Online (VSO) and a Personal Access Token" /><published>2015-11-16T09:35:35-06:00</published><updated>2015-11-16T09:35:35-06:00</updated><id>http://stevenfollis.com/2015/11/16/using-git-with-visual-studio-online-token</id><content type="html" xml:base="http://stevenfollis.com/2015/11/16/using-git-with-visual-studio-online-token/">&lt;p&gt;Once upon a time, using Visual Studio Online/TFS meant you were locked into using Team Foundation Version Control (TFVC) for all of your versioning needs. Nowadays you have a choice of centralized TFVC, or decentralized Git repositories (and no, &lt;a href=&quot;http://blogs.msdn.com/b/bharry/archive/2014/04/14/is-microsoft-abandoning-tfvc-in-favor-of-git.aspx&quot;&gt;TFVC is not dead&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;For those who have taken the Git path, how about that &lt;a href=&quot;https://www.visualstudio.com/en-us/get-started/code/share-your-code-in-git-vs&quot;&gt;Visual Studio integration&lt;/a&gt;? Wraps all the command line fun in a nice, pretty UI that simplifies pulls and puts. However, you don’t yet get a full 100% Git experience in the UI. For those ocassions, and for when you plain prefer using a command line, you can access VSO repositories via a variety of command lines.&lt;/p&gt;
-
-&lt;p&gt;Sounds simple right? Fire up PowerShell/Terminal/CMD/xplat cli/et. al., hammer out a little &lt;code class=&quot;highlighter-rouge&quot;&gt;git pull&lt;/code&gt;, login with a username and password, and you’re good to go:
-&lt;img src=&quot;/content/images/2015/11/Screenshot_111615_074736_AM.jpg&quot; alt=&quot;Failed PowerShell login&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;“Authentication failed”? That’s not good! What gives? My organization requires two factor authentication for user logins, and the command line has a history of not playing nicely (though &lt;a href=&quot;https://azure.microsoft.com/en-us/blog/azure-cli-supports-microsoft-account-logins/&quot;&gt;getting better&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;In order to access my repo, I need to setup a “Personal Access Token” via VSO.  Fire up your browser, and from your project’s homepage click your name, then “My Profile”.
-&lt;img src=&quot;/content/images/2015/11/Untitled_Clipping_111615_075811_AM.jpg&quot; alt=&quot;VSO Homepage&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;That will take you to your Profile.  On the tab next to “Profile”, click “Security” and then confirm the left hand nav is set to “Personal Access Tokens”. 
-&lt;img src=&quot;/content/images/2015/11/Untitled_Clipping_111615_080141_AM.jpg&quot; alt=&quot;Security Pane&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Here you can manage tokens. We’ll create a new one for our command line by clicking the “Add” button. Now we’re cooking! We can give out token a name, define an expiration date of 90/180/365 days, which account(s) the token applies, and set specific scopes.  I’m keeping things vanilla for mine but feel free to tighten up as needed.
-&lt;img src=&quot;/content/images/2015/11/Untitled_Clipping_111615_081153_AM.jpg&quot; alt=&quot;Token Creation Screen&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Click “Generate Token” and congratulation! You’re got your very own personal access token. Copy it down, and let’s retry our command line &lt;code class=&quot;highlighter-rouge&quot;&gt;git pull&lt;/code&gt; a second time:
-&lt;img src=&quot;/content/images/2015/11/Screenshot_111615_081714_AM.jpg&quot; alt=&quot;Command line success&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We’ve now successfully used the command line with a personal access token to execute a pull request for code sitting in a Visual Studio Online (VSO) Git repository. You can see it even pullled down new files locally!&lt;/p&gt;
-
-&lt;p&gt;With this PAT we’re free to use the command line for all of our Git related needs.  Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Once upon a time, using Visual Studio Online/TFS meant you were locked into using Team Foundation Version Control (TFVC) for all of your versioning needs. Nowadays you have a choice of centralized TFVC, or decentralized Git repositories (and no, TFVC is not dead).</summary></entry><entry><title type="html">Using CSS Regions in Visual Studio</title><link href="http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio/" rel="alternate" type="text/html" title="Using CSS Regions in Visual Studio" /><published>2015-04-23T06:54:13-05:00</published><updated>2015-04-23T06:54:13-05:00</updated><id>http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio</id><content type="html" xml:base="http://stevenfollis.com/2015/04/23/using-css-regions-in-visual-studio/">&lt;p&gt;Short tip today regarding CSS in Visual Studio that is far from universally known.  Many folks use comments to keep sections of CSS code organized:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_080415_AM.jpg&quot; alt=&quot;Regular CSS Comments&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;But our file is still super long.  If we want to adjust our footer, we have to scroll through numerous sections that we don’t care about.&lt;/p&gt;
-
-&lt;p&gt;This is where CSS Regions can help out!  Let’s amend the comments a bit, changing &lt;code class=&quot;highlighter-rouge&quot;&gt;/*&lt;/code&gt; over to &lt;code class=&quot;highlighter-rouge&quot;&gt;/*#region&lt;/code&gt; and at the end of a block adding a &lt;code class=&quot;highlighter-rouge&quot;&gt;/*#endregion*/&lt;/code&gt;:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_080807_AM.jpg&quot; alt=&quot;CSS with Regions Added&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Those pink arrows are pointing out some new expand/collapse icons.  We can now easily collapse chunks of our code, allowing us to easily pinpoint where on the page the footer specific styles are located:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/content/images/2015/04/Screenshot_042315_081126_AM.jpg&quot; alt=&quot;Collapsed code&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;This is an extremely simple example, but on a long CSS file with 10+ sections of code using regions can save loads of time and headache.  Also for new team members it’s great to open up a CSS file to nicely collapsed sections, allowing them to at a glance ramp up on the different chunk of an application.&lt;/p&gt;
-
-&lt;p&gt;Prefer keyboard shortcuts?  CSS Regions has you covered!  Expand or Collapse All with &lt;code class=&quot;highlighter-rouge&quot;&gt;CTRL&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;L&lt;/code&gt;.  For an individual section, place your cursor in that section and use &lt;code class=&quot;highlighter-rouge&quot;&gt;CTRL&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;M&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Very simple technique, but one that makes working with CSS in Visual Studio even easier.  Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">Short tip today regarding CSS in Visual Studio that is far from universally known. Many folks use comments to keep sections of CSS code organized:</summary></entry></feed>
+&lt;p&gt;Thanks!&lt;/p&gt;</content><author><name></name></author><summary type="html">ExpressJS is a terrific starting point for creating APIs with Node.js, but can quickly difficult to manage on large, complex projects. Addressing this issue is an entire ecosystem of frameworks that has grown up around providing opinionated structure to API development, and one such framework is IBM Strongloop’s Loopback.</summary></entry></feed>

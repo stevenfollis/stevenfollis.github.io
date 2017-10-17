@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Thoughts on technology by Steven Follis">
+
+    <title>Modernizing the Web Matrix Bakery Application with Docker and Visual Studio - Steven Follis</title>
+
+    <link rel="canonical" href="http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/clean-blog.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Steven Follis" />
+
+</head>
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>Modernizing the Web Matrix Bakery Application with Docker and Visual Studio | Steven Follis</title>
+<meta property="og:title" content="Modernizing the Web Matrix Bakery Application with Docker and Visual Studio" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Web Matrix is a code editor that has been around for a very long time and will [sadly] reach end of life on November 1, 2017. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it. Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface. Pre-Requisites Docker for Windows Visual Studio 2017 Community Edition (or similar) SQL Server Express (or better) running locally Install Web Matrix Web Matrix 3.0 can be installed via the Web Platform Installer. Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!). After installing, start the Web Matrix application. Part 1: The Web Application Create a sample Bakery application When Web Matrix is first started, you are greeted with a few options. For our purposes today, select New and Template Gallery. The Template Gallery contains several options. Select the Bakery template tile, and name the site Bakery. Feel free to try this same exercise with the Photo Gallery or Personal Site templates Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies. Once the solution is visible, click Run from the top left corner of the ribbon to launch the application in a browser. Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired back in 2012 for Outlook.com. Check out Order.cshtml: With the application generated and running, let’s setup a Visual Studio solution for easier management. Application files should be located at C:\Users\&lt;your username&gt;\Documents\My Web Sites Configure the application for Visual Studio Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click Visual Studio from the ribbon bar. I have Visual Studio 2017 Community edition installed, but any recent-ish version of VS should work. Visual Studio then opens, with a VS Solution and Project generated with our code. Hit F5 to enter debug mode, and you should see the same web application in the browser as before. In File Explorer, we have a bit of a mismatch. Our original files are located at C:\Users\&lt;your username&gt;\Documents\My Web Sites, but our VS Solution is located at C:\Users\&lt;your username&gt;\Documents\WebMatrix Solutions\Projects. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step. Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward. Close the open Solution in Visual Studio by selecting File -&gt; Close. Then select File -&gt; New Project, naming the Solution Bakery and selecting the ASP.NET Empty Web Application template from the Installed Visual C# web templates. Be sure to also select .NET Framework 4 from the New Project’s dropdown. This was found from the left-hand navigation bar of Site –&gt; Settings –&gt; Select .NET Version to see that it is configured to use .NET 4. Once Visual Studio scaffolds out our Solution and Project, delete web.config since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening C:\Users\steven\Documents\visual studio 2017\Projects\Bakery\WebApplication and pasting in all files from C:\Users\steven\Documents\My Web Sites\Bakery. Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select Add -&gt; Existing Item Then select all items in your Project’s folder (except for the existing .csproj Project FIle) and select Add. Now in Visual Studio, all files are present. Hit F5 to again ensure that the Web Application loads as expected in a browser window. That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing! Docker-ize the Application Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the Visual Studio tools for Docker. Right-click on the WebApplication project, select Add, and click Docker Support. The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit F5 to launch a new debugging session you’ll likely meet this lovely screen: With an error saying: System.Data.SqlServerCe.SqlCeException occurred HResult=0x80004005 Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\inetpub\wwwroot\App_Data\bakery.sdf ] Source=SQL Server Compact ADO.NET Data Provider StackTrace: &lt;Cannot evaluate the exception stack trace&gt; “The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with Elton Stoneman’s help (his new book is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile. Open the Dockerfile that was auto-generated for us by the VS Tools for Docker: FROM microsoft/aspnet:4.7 ARG source WORKDIR /inetpub/wwwroot COPY ${source:-obj/Docker/publish} . Update the Dockerfile with a new RUN statement and a fresh, non-IIS default working directory: FROM microsoft/aspnet:4.7 ARG source WORKDIR /web-app RUN Remove-Website -Name &#39;Default Web Site&#39;; \ Set-ItemProperty IIS:\AppPools\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \ New-Website -Name &#39;web-app&#39; -Port 80 -PhysicalPath &#39;C:\web-app&#39; -ApplicationPool &#39;DefaultAppPool&#39; COPY ${source:-obj/Docker/publish} . To avoid any insertion of the tooling’s debugging system, switch the Configuration to Release, and hit CTRL-F5 to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s entrypoint. Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker: Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container: docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; &lt;your container name&gt; There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application. Part 2: The Database Externalize the database The Bakery appplication is using Microsoft SQL Server Compact (SQL CE), a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single .sdf file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an official image on Docker Hub, but first we need to get our existing product catalog migrated. Opening SQL Server Management Studio 17, I had expected to be able to migrate my .sdf database to a format that would work with SQL Server (or at last generate a .sql file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance. There are numerous 3rd party tools for getting data out of a SQL CE file if Web Matrix isn’t an option (or just download SSMS 2008) Opening Web Matrix and navigating to Databases from the left navigation, select bakery.sdf and on the ribbon select Migrate Note: you need SQL Server installed locally for this to work. Express works fine (is what I used) Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click OK and Web Matrix will automatically migrate the data. Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present. Create a SQL Project We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system. To create the project, right click on the Visual Studio solution, hover on Add and select New Project Select SQL Server from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern 4.6.2. Select the SQL Server Database Project template, and name the project Database. Click OK to scaffold out the project. Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the Database project, selecting Import and clicking on Database. In the Import Database wizard, we need to configure a connection the local SQL instance. Click Select Connection and configure Server Name to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the bakery database (the DB name that was setup earlier in the SQL instance) and click Connect. Back on the Import Database wizard, click Start to begin the import process and watch the Summary screen complete. Click Finish to close the wizard. The Database Project now has a folder named dbo. Expand it and open Products.sql. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file. Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process. To use this schema in a Windows container, we will build the Project into a .dacpac file and import the file into a container. Create a SQL Server Container Microsoft maintains a set of Docker Containers for mssql-server-linx, mssql-server-windows-developer, and mssql-server-windows-express, and mssql-server-windows. These are stock images that will require us to add our own database, schema, and data. The preferred approach for managing and deploying SQL Server databases is a dacpac. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process. Create a Dockerfile in the Database project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following: # escape=` # ================ # Builder Image # ================ # Downloads dependencies and compiles the SQL Project FROM microsoft/windowsservercore:10.0.14393.1715 AS builder SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] # Install Chocolatey for headless installation of MSFT Build tooling RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; ` Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force # Install Nuget and install Microsoft Data Tools RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210 # Add MSBuild to Path for easier usage ENV MSBUILD_PATH=&quot;C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin&quot; RUN $env:PATH = $env:MSBUILD_PATH + &#39;;&#39; + $env:PATH; ` [Environment]::SetEnvironmentVariable(&#39;PATH&#39;, $env:PATH, [EnvironmentVariableTarget]::Machine) # Create a folder in the image and copy over VS Project files WORKDIR C:\src COPY . . # Build project RUN msbuild Database.sqlproj ` /p:SQLDBExtensionsRefPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:SqlServerRedistPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:Configuration=Release # ================ # Database Image # ================ FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715 SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; ` mkdir C:\database # Copy built dacpac (from earlier build stage) and configuration scripts WORKDIR C:\init COPY --from=builder C:\src\bin\Release\Database.dacpac . COPY Initialize-Database.ps1 . COPY SampleData.sql . # Set startup command to initalize the database CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening: Two “stages” are being used in our “multi-stage build”. The first is named “builder” and is responsible for building the Database Project into a resulting .dacpac file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files. The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the .dacpac file from the previous stage, and executing the deployment via the Initialize-Database.ps1 script file. By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the .dacpac file needed for database deployment. The Dockerfile references a few files that need to be present in our Project for the COPY statements to work. In the Database Project, create a new file for Initialize-Database.ps1 and SampleData.sql, then paste in the contents: Initialize-Database.ps1: # Adapted from Microsoft&#39;s SQL Server Express sample: # https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1 # And Docker Labs&#39; SQL Server Lab # https://github.com/docker/labs/tree/master/windows/sql-server param( [Parameter(Mandatory=$false)] [string]$sa_password) # Start the service Write-Verbose &#39;Starting SQL Server&#39; Start-Service MSSQL`$SQLEXPRESS if ($sa_password -ne &quot;_&quot;) { Write-Verbose &#39;Changing SA login credentials&#39; $sqlcmd = &quot;ALTER LOGIN sa with password=&#39;$sa_password&#39;; ALTER LOGIN sa ENABLE;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Attach data files if they exist: $mdfPath = &#39;c:\database\BakeryDB_Primary.mdf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;CREATE DATABASE BakeryDB ON (FILENAME = N&#39;$mdfPath&#39;)&quot; $ldfPath = &#39;c:\database\BakeryDB_Primary.ldf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;$sqlcmd, (FILENAME = N&#39;$ldfPath&#39;)&quot; } $sqlcmd = &quot;$sqlcmd FOR ATTACH;&quot; Write-Verbose &quot;Invoke-Sqlcmd -Query $($sqlcmd) -ServerInstance &#39;.\SQLEXPRESS&#39;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Deploy or upgrade the database: $SqlPackagePath = &#39;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46\SqlPackage.exe&#39; &amp; $SqlPackagePath ` /sf:Database.dacpac ` /a:Script ` /op:create.sql ` /p:CommentOutSetVarDeclarations=true ` /tsn:.\SQLEXPRESS ` /tdn:BakeryDB ` /tu:sa ` /tp:$sa_password $SqlCmdVars = &quot;DatabaseName=BakeryDB&quot;, &quot;DefaultFilePrefix=BakeryDB&quot;, &quot;DefaultDataPath=c:\database\&quot;, &quot;DefaultLogPath=c:\database\&quot; Invoke-Sqlcmd -InputFile create.sql -Variable $SqlCmdVars -Verbose Write-Verbose &quot;Deployed dacpac&quot; # Insert sample data Write-Verbose &quot;Inserting Sample Data&quot; Invoke-Sqlcmd -InputFile .\SampleData.sql -ServerInstance .\SQLEXPRESS # Relay SQL event logs to Docker $lastCheck = (Get-Date).AddSeconds(-2) while ($true) { Get-EventLog -LogName Application -Source &quot;MSSQL*&quot; -After $lastCheck | Select-Object TimeGenerated, EntryType, Message $lastCheck = Get-Date Start-Sleep -Seconds 2 } SampleData.sql: USE [BakeryDB] GO INSERT INTO [dbo].[Products] ([Name] ,[Description] ,[Price] ,[ImageName]) VALUES (&#39;Carrot Cake&#39; ,&#39;A scrumptious mini-carrot cake encrusted with sliced almonds&#39; ,8.99 ,&#39;carrot_cake.jpg&#39;), (&#39;Lemon Tart&#39; ,&#39;A delicious lemon tart with fresh meringue cooked to perfection&#39; ,9.99 ,&#39;lemon_tart.jpg&#39;), (&#39;Cupcakes&#39; ,&#39;Delectable vanilla and chocolate cupcakes&#39; ,5.99 ,&#39;cupcakes.jpg&#39;), (&#39;Bread&#39; ,&#39;Fresh baked French-style bread&#39; ,1.49 ,&#39;bread.jpg&#39;), (&#39;Pear Tart&#39; ,&#39;A glazed pear tart topped with sliced almonds and a dash of cinnamon&#39; ,5.99 ,&#39;pear_tart.jpg&#39;), (&#39;Chocolate Cake&#39; ,&#39;Rich chocolate frosting cover this chocolate lover’s dream.&#39; ,8.99 ,&#39;chocolate_cake.jpg&#39;) GO The SampleData.sql needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click Properties. From the Properties window, toggle the Build Action to None. With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the ./Bakery/Database directory. docker build -t bakery:database . Once the build completes, test the database locally by running docker run --name dbtest -it --rm -p 1433:1433 -e ACCEPT_EULA=y -e sa_password=Docker123 bakery:database Using docker run with the -it flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s CMD statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container. docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; dbtest Plug the IP address into SQL Server Management Studio with username sa and password Docker123 to verify that the BakeryDB and Products table sample data was successfully generated. We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application. Part 3: Connecting the Web Application and Database In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing docker-compose.yml file. Extend Docker Compose When we last left the humble docker-compose.yml file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional database service: version: &#39;3&#39; services: webapplication: image: webapplication build: context: .\WebApplication dockerfile: Dockerfile depends_on: - database database: image: database build: context: .\Database dockerfile: Dockerfile environment: - ACCEPT_EULA=Y - sa_password=Docker123 We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a docker run. With the web application talking to a separate container, we need to define a Connection String for the client. Opening web.config, paste in the &lt;connectionStrings&gt; block into &lt;configuration&gt;. &lt;configuration&gt; &lt;connectionStrings&gt; &lt;add connectionString=&quot;Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123&quot; name=&quot;bakery&quot; providerName=&quot;System.Data.SqlClient&quot; /&gt; &lt;/connectionStrings&gt; &lt;system.web&gt; &lt;compilation debug=&quot;true&quot; targetFramework=&quot;4.0&quot; /&gt; &lt;customErrors mode=&quot;Off&quot;/&gt; &lt;/system.web&gt; &lt;system.data&gt; &lt;DbProviderFactories&gt; &lt;remove invariant=&quot;System.Data.SqlServerCe.4.0&quot; /&gt; &lt;add invariant=&quot;System.Data.SqlServerCe.4.0&quot; name=&quot;Microsoft® SQL Server® Compact 4.0&quot; description=&quot;.NET Framework Data Provider for Microsoft SQL Server Compact&quot; type=&quot;System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91&quot; /&gt; &lt;/DbProviderFactories&gt; &lt;/system.data&gt; &lt;/configuration&gt; The name the same name as the “bakery” .sdf file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries. The Data Source is set to database, which is the name of the Service that is defined in the docker-compose.yml file. Docker’s builtin DNS will resolve the database name for us. Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of Docker Secrets for handling sensitive information. What’s up, Bakery With the docker-compose file polished up we can launch both Services with a simple docker-compose up from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a docker system prune -f to remove dangling images and volumes. Note that the VS Tools for Docker setup several compose files, which we can stack with multiple -f flags. docker-compose -f .\docker-compose.yml -f .\docker-compose.override.yml up --build --force-recreate docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; bakery_webapplication_1 With the IP address from the docker inspect statement, open the running Web Application in a browser tab. At this point we could likely delete the entire .sdf file from the solution, but as a sanity check I grabbed the IP address for the database (also via docker inspect) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected. Wrap Up Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems. For more information, please see the SQL Server Lab on GitHub, which heavily influenced this post. Thanks!" />
+<meta property="og:description" content="Web Matrix is a code editor that has been around for a very long time and will [sadly] reach end of life on November 1, 2017. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it. Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface. Pre-Requisites Docker for Windows Visual Studio 2017 Community Edition (or similar) SQL Server Express (or better) running locally Install Web Matrix Web Matrix 3.0 can be installed via the Web Platform Installer. Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!). After installing, start the Web Matrix application. Part 1: The Web Application Create a sample Bakery application When Web Matrix is first started, you are greeted with a few options. For our purposes today, select New and Template Gallery. The Template Gallery contains several options. Select the Bakery template tile, and name the site Bakery. Feel free to try this same exercise with the Photo Gallery or Personal Site templates Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies. Once the solution is visible, click Run from the top left corner of the ribbon to launch the application in a browser. Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired back in 2012 for Outlook.com. Check out Order.cshtml: With the application generated and running, let’s setup a Visual Studio solution for easier management. Application files should be located at C:\Users\&lt;your username&gt;\Documents\My Web Sites Configure the application for Visual Studio Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click Visual Studio from the ribbon bar. I have Visual Studio 2017 Community edition installed, but any recent-ish version of VS should work. Visual Studio then opens, with a VS Solution and Project generated with our code. Hit F5 to enter debug mode, and you should see the same web application in the browser as before. In File Explorer, we have a bit of a mismatch. Our original files are located at C:\Users\&lt;your username&gt;\Documents\My Web Sites, but our VS Solution is located at C:\Users\&lt;your username&gt;\Documents\WebMatrix Solutions\Projects. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step. Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward. Close the open Solution in Visual Studio by selecting File -&gt; Close. Then select File -&gt; New Project, naming the Solution Bakery and selecting the ASP.NET Empty Web Application template from the Installed Visual C# web templates. Be sure to also select .NET Framework 4 from the New Project’s dropdown. This was found from the left-hand navigation bar of Site –&gt; Settings –&gt; Select .NET Version to see that it is configured to use .NET 4. Once Visual Studio scaffolds out our Solution and Project, delete web.config since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening C:\Users\steven\Documents\visual studio 2017\Projects\Bakery\WebApplication and pasting in all files from C:\Users\steven\Documents\My Web Sites\Bakery. Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select Add -&gt; Existing Item Then select all items in your Project’s folder (except for the existing .csproj Project FIle) and select Add. Now in Visual Studio, all files are present. Hit F5 to again ensure that the Web Application loads as expected in a browser window. That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing! Docker-ize the Application Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the Visual Studio tools for Docker. Right-click on the WebApplication project, select Add, and click Docker Support. The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit F5 to launch a new debugging session you’ll likely meet this lovely screen: With an error saying: System.Data.SqlServerCe.SqlCeException occurred HResult=0x80004005 Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\inetpub\wwwroot\App_Data\bakery.sdf ] Source=SQL Server Compact ADO.NET Data Provider StackTrace: &lt;Cannot evaluate the exception stack trace&gt; “The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with Elton Stoneman’s help (his new book is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile. Open the Dockerfile that was auto-generated for us by the VS Tools for Docker: FROM microsoft/aspnet:4.7 ARG source WORKDIR /inetpub/wwwroot COPY ${source:-obj/Docker/publish} . Update the Dockerfile with a new RUN statement and a fresh, non-IIS default working directory: FROM microsoft/aspnet:4.7 ARG source WORKDIR /web-app RUN Remove-Website -Name &#39;Default Web Site&#39;; \ Set-ItemProperty IIS:\AppPools\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \ New-Website -Name &#39;web-app&#39; -Port 80 -PhysicalPath &#39;C:\web-app&#39; -ApplicationPool &#39;DefaultAppPool&#39; COPY ${source:-obj/Docker/publish} . To avoid any insertion of the tooling’s debugging system, switch the Configuration to Release, and hit CTRL-F5 to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s entrypoint. Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker: Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container: docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; &lt;your container name&gt; There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application. Part 2: The Database Externalize the database The Bakery appplication is using Microsoft SQL Server Compact (SQL CE), a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single .sdf file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an official image on Docker Hub, but first we need to get our existing product catalog migrated. Opening SQL Server Management Studio 17, I had expected to be able to migrate my .sdf database to a format that would work with SQL Server (or at last generate a .sql file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance. There are numerous 3rd party tools for getting data out of a SQL CE file if Web Matrix isn’t an option (or just download SSMS 2008) Opening Web Matrix and navigating to Databases from the left navigation, select bakery.sdf and on the ribbon select Migrate Note: you need SQL Server installed locally for this to work. Express works fine (is what I used) Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click OK and Web Matrix will automatically migrate the data. Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present. Create a SQL Project We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system. To create the project, right click on the Visual Studio solution, hover on Add and select New Project Select SQL Server from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern 4.6.2. Select the SQL Server Database Project template, and name the project Database. Click OK to scaffold out the project. Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the Database project, selecting Import and clicking on Database. In the Import Database wizard, we need to configure a connection the local SQL instance. Click Select Connection and configure Server Name to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the bakery database (the DB name that was setup earlier in the SQL instance) and click Connect. Back on the Import Database wizard, click Start to begin the import process and watch the Summary screen complete. Click Finish to close the wizard. The Database Project now has a folder named dbo. Expand it and open Products.sql. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file. Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process. To use this schema in a Windows container, we will build the Project into a .dacpac file and import the file into a container. Create a SQL Server Container Microsoft maintains a set of Docker Containers for mssql-server-linx, mssql-server-windows-developer, and mssql-server-windows-express, and mssql-server-windows. These are stock images that will require us to add our own database, schema, and data. The preferred approach for managing and deploying SQL Server databases is a dacpac. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process. Create a Dockerfile in the Database project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following: # escape=` # ================ # Builder Image # ================ # Downloads dependencies and compiles the SQL Project FROM microsoft/windowsservercore:10.0.14393.1715 AS builder SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] # Install Chocolatey for headless installation of MSFT Build tooling RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; ` Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force # Install Nuget and install Microsoft Data Tools RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210 # Add MSBuild to Path for easier usage ENV MSBUILD_PATH=&quot;C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin&quot; RUN $env:PATH = $env:MSBUILD_PATH + &#39;;&#39; + $env:PATH; ` [Environment]::SetEnvironmentVariable(&#39;PATH&#39;, $env:PATH, [EnvironmentVariableTarget]::Machine) # Create a folder in the image and copy over VS Project files WORKDIR C:\src COPY . . # Build project RUN msbuild Database.sqlproj ` /p:SQLDBExtensionsRefPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:SqlServerRedistPath=&quot;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46&quot; ` /p:Configuration=Release # ================ # Database Image # ================ FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715 SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; ` mkdir C:\database # Copy built dacpac (from earlier build stage) and configuration scripts WORKDIR C:\init COPY --from=builder C:\src\bin\Release\Database.dacpac . COPY Initialize-Database.ps1 . COPY SampleData.sql . # Set startup command to initalize the database CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening: Two “stages” are being used in our “multi-stage build”. The first is named “builder” and is responsible for building the Database Project into a resulting .dacpac file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files. The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the .dacpac file from the previous stage, and executing the deployment via the Initialize-Database.ps1 script file. By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the .dacpac file needed for database deployment. The Dockerfile references a few files that need to be present in our Project for the COPY statements to work. In the Database Project, create a new file for Initialize-Database.ps1 and SampleData.sql, then paste in the contents: Initialize-Database.ps1: # Adapted from Microsoft&#39;s SQL Server Express sample: # https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1 # And Docker Labs&#39; SQL Server Lab # https://github.com/docker/labs/tree/master/windows/sql-server param( [Parameter(Mandatory=$false)] [string]$sa_password) # Start the service Write-Verbose &#39;Starting SQL Server&#39; Start-Service MSSQL`$SQLEXPRESS if ($sa_password -ne &quot;_&quot;) { Write-Verbose &#39;Changing SA login credentials&#39; $sqlcmd = &quot;ALTER LOGIN sa with password=&#39;$sa_password&#39;; ALTER LOGIN sa ENABLE;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Attach data files if they exist: $mdfPath = &#39;c:\database\BakeryDB_Primary.mdf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;CREATE DATABASE BakeryDB ON (FILENAME = N&#39;$mdfPath&#39;)&quot; $ldfPath = &#39;c:\database\BakeryDB_Primary.ldf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;$sqlcmd, (FILENAME = N&#39;$ldfPath&#39;)&quot; } $sqlcmd = &quot;$sqlcmd FOR ATTACH;&quot; Write-Verbose &quot;Invoke-Sqlcmd -Query $($sqlcmd) -ServerInstance &#39;.\SQLEXPRESS&#39;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\SQLEXPRESS&quot; } # Deploy or upgrade the database: $SqlPackagePath = &#39;C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46\SqlPackage.exe&#39; &amp; $SqlPackagePath ` /sf:Database.dacpac ` /a:Script ` /op:create.sql ` /p:CommentOutSetVarDeclarations=true ` /tsn:.\SQLEXPRESS ` /tdn:BakeryDB ` /tu:sa ` /tp:$sa_password $SqlCmdVars = &quot;DatabaseName=BakeryDB&quot;, &quot;DefaultFilePrefix=BakeryDB&quot;, &quot;DefaultDataPath=c:\database\&quot;, &quot;DefaultLogPath=c:\database\&quot; Invoke-Sqlcmd -InputFile create.sql -Variable $SqlCmdVars -Verbose Write-Verbose &quot;Deployed dacpac&quot; # Insert sample data Write-Verbose &quot;Inserting Sample Data&quot; Invoke-Sqlcmd -InputFile .\SampleData.sql -ServerInstance .\SQLEXPRESS # Relay SQL event logs to Docker $lastCheck = (Get-Date).AddSeconds(-2) while ($true) { Get-EventLog -LogName Application -Source &quot;MSSQL*&quot; -After $lastCheck | Select-Object TimeGenerated, EntryType, Message $lastCheck = Get-Date Start-Sleep -Seconds 2 } SampleData.sql: USE [BakeryDB] GO INSERT INTO [dbo].[Products] ([Name] ,[Description] ,[Price] ,[ImageName]) VALUES (&#39;Carrot Cake&#39; ,&#39;A scrumptious mini-carrot cake encrusted with sliced almonds&#39; ,8.99 ,&#39;carrot_cake.jpg&#39;), (&#39;Lemon Tart&#39; ,&#39;A delicious lemon tart with fresh meringue cooked to perfection&#39; ,9.99 ,&#39;lemon_tart.jpg&#39;), (&#39;Cupcakes&#39; ,&#39;Delectable vanilla and chocolate cupcakes&#39; ,5.99 ,&#39;cupcakes.jpg&#39;), (&#39;Bread&#39; ,&#39;Fresh baked French-style bread&#39; ,1.49 ,&#39;bread.jpg&#39;), (&#39;Pear Tart&#39; ,&#39;A glazed pear tart topped with sliced almonds and a dash of cinnamon&#39; ,5.99 ,&#39;pear_tart.jpg&#39;), (&#39;Chocolate Cake&#39; ,&#39;Rich chocolate frosting cover this chocolate lover’s dream.&#39; ,8.99 ,&#39;chocolate_cake.jpg&#39;) GO The SampleData.sql needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click Properties. From the Properties window, toggle the Build Action to None. With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the ./Bakery/Database directory. docker build -t bakery:database . Once the build completes, test the database locally by running docker run --name dbtest -it --rm -p 1433:1433 -e ACCEPT_EULA=y -e sa_password=Docker123 bakery:database Using docker run with the -it flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s CMD statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container. docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; dbtest Plug the IP address into SQL Server Management Studio with username sa and password Docker123 to verify that the BakeryDB and Products table sample data was successfully generated. We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application. Part 3: Connecting the Web Application and Database In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing docker-compose.yml file. Extend Docker Compose When we last left the humble docker-compose.yml file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional database service: version: &#39;3&#39; services: webapplication: image: webapplication build: context: .\WebApplication dockerfile: Dockerfile depends_on: - database database: image: database build: context: .\Database dockerfile: Dockerfile environment: - ACCEPT_EULA=Y - sa_password=Docker123 We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a docker run. With the web application talking to a separate container, we need to define a Connection String for the client. Opening web.config, paste in the &lt;connectionStrings&gt; block into &lt;configuration&gt;. &lt;configuration&gt; &lt;connectionStrings&gt; &lt;add connectionString=&quot;Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123&quot; name=&quot;bakery&quot; providerName=&quot;System.Data.SqlClient&quot; /&gt; &lt;/connectionStrings&gt; &lt;system.web&gt; &lt;compilation debug=&quot;true&quot; targetFramework=&quot;4.0&quot; /&gt; &lt;customErrors mode=&quot;Off&quot;/&gt; &lt;/system.web&gt; &lt;system.data&gt; &lt;DbProviderFactories&gt; &lt;remove invariant=&quot;System.Data.SqlServerCe.4.0&quot; /&gt; &lt;add invariant=&quot;System.Data.SqlServerCe.4.0&quot; name=&quot;Microsoft® SQL Server® Compact 4.0&quot; description=&quot;.NET Framework Data Provider for Microsoft SQL Server Compact&quot; type=&quot;System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91&quot; /&gt; &lt;/DbProviderFactories&gt; &lt;/system.data&gt; &lt;/configuration&gt; The name the same name as the “bakery” .sdf file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries. The Data Source is set to database, which is the name of the Service that is defined in the docker-compose.yml file. Docker’s builtin DNS will resolve the database name for us. Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of Docker Secrets for handling sensitive information. What’s up, Bakery With the docker-compose file polished up we can launch both Services with a simple docker-compose up from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a docker system prune -f to remove dangling images and volumes. Note that the VS Tools for Docker setup several compose files, which we can stack with multiple -f flags. docker-compose -f .\docker-compose.yml -f .\docker-compose.override.yml up --build --force-recreate docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; bakery_webapplication_1 With the IP address from the docker inspect statement, open the running Web Application in a browser tab. At this point we could likely delete the entire .sdf file from the solution, but as a sanity check I grabbed the IP address for the database (also via docker inspect) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected. Wrap Up Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems. For more information, please see the SQL Server Lab on GitHub, which heavily influenced this post. Thanks!" />
+<link rel="canonical" href="http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/" />
+<meta property="og:url" content="http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/" />
+<meta property="og:site_name" content="Steven Follis" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-10-17T02:00:00-04:00" />
+<script type="application/ld+json">
+{"name":null,"description":"Web Matrix is a code editor that has been around for a very long time and will [sadly] reach end of life on November 1, 2017. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it. Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface. Pre-Requisites Docker for Windows Visual Studio 2017 Community Edition (or similar) SQL Server Express (or better) running locally Install Web Matrix Web Matrix 3.0 can be installed via the Web Platform Installer. Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!). After installing, start the Web Matrix application. Part 1: The Web Application Create a sample Bakery application When Web Matrix is first started, you are greeted with a few options. For our purposes today, select New and Template Gallery. The Template Gallery contains several options. Select the Bakery template tile, and name the site Bakery. Feel free to try this same exercise with the Photo Gallery or Personal Site templates Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies. Once the solution is visible, click Run from the top left corner of the ribbon to launch the application in a browser. Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired back in 2012 for Outlook.com. Check out Order.cshtml: With the application generated and running, let’s setup a Visual Studio solution for easier management. Application files should be located at C:\\Users\\&lt;your username&gt;\\Documents\\My Web Sites Configure the application for Visual Studio Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click Visual Studio from the ribbon bar. I have Visual Studio 2017 Community edition installed, but any recent-ish version of VS should work. Visual Studio then opens, with a VS Solution and Project generated with our code. Hit F5 to enter debug mode, and you should see the same web application in the browser as before. In File Explorer, we have a bit of a mismatch. Our original files are located at C:\\Users\\&lt;your username&gt;\\Documents\\My Web Sites, but our VS Solution is located at C:\\Users\\&lt;your username&gt;\\Documents\\WebMatrix Solutions\\Projects. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step. Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward. Close the open Solution in Visual Studio by selecting File -&gt; Close. Then select File -&gt; New Project, naming the Solution Bakery and selecting the ASP.NET Empty Web Application template from the Installed Visual C# web templates. Be sure to also select .NET Framework 4 from the New Project’s dropdown. This was found from the left-hand navigation bar of Site –&gt; Settings –&gt; Select .NET Version to see that it is configured to use .NET 4. Once Visual Studio scaffolds out our Solution and Project, delete web.config since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening C:\\Users\\steven\\Documents\\visual studio 2017\\Projects\\Bakery\\WebApplication and pasting in all files from C:\\Users\\steven\\Documents\\My Web Sites\\Bakery. Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select Add -&gt; Existing Item Then select all items in your Project’s folder (except for the existing .csproj Project FIle) and select Add. Now in Visual Studio, all files are present. Hit F5 to again ensure that the Web Application loads as expected in a browser window. That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing! Docker-ize the Application Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the Visual Studio tools for Docker. Right-click on the WebApplication project, select Add, and click Docker Support. The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit F5 to launch a new debugging session you’ll likely meet this lovely screen: With an error saying: System.Data.SqlServerCe.SqlCeException occurred HResult=0x80004005 Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\\inetpub\\wwwroot\\App_Data\\bakery.sdf ] Source=SQL Server Compact ADO.NET Data Provider StackTrace: &lt;Cannot evaluate the exception stack trace&gt; “The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with Elton Stoneman’s help (his new book is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile. Open the Dockerfile that was auto-generated for us by the VS Tools for Docker: FROM microsoft/aspnet:4.7 ARG source WORKDIR /inetpub/wwwroot COPY ${source:-obj/Docker/publish} . Update the Dockerfile with a new RUN statement and a fresh, non-IIS default working directory: FROM microsoft/aspnet:4.7 ARG source WORKDIR /web-app RUN Remove-Website -Name &#39;Default Web Site&#39;; \\ Set-ItemProperty IIS:\\AppPools\\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \\ New-Website -Name &#39;web-app&#39; -Port 80 -PhysicalPath &#39;C:\\web-app&#39; -ApplicationPool &#39;DefaultAppPool&#39; COPY ${source:-obj/Docker/publish} . To avoid any insertion of the tooling’s debugging system, switch the Configuration to Release, and hit CTRL-F5 to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s entrypoint. Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker: Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container: docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; &lt;your container name&gt; There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application. Part 2: The Database Externalize the database The Bakery appplication is using Microsoft SQL Server Compact (SQL CE), a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single .sdf file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an official image on Docker Hub, but first we need to get our existing product catalog migrated. Opening SQL Server Management Studio 17, I had expected to be able to migrate my .sdf database to a format that would work with SQL Server (or at last generate a .sql file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance. There are numerous 3rd party tools for getting data out of a SQL CE file if Web Matrix isn’t an option (or just download SSMS 2008) Opening Web Matrix and navigating to Databases from the left navigation, select bakery.sdf and on the ribbon select Migrate Note: you need SQL Server installed locally for this to work. Express works fine (is what I used) Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click OK and Web Matrix will automatically migrate the data. Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present. Create a SQL Project We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system. To create the project, right click on the Visual Studio solution, hover on Add and select New Project Select SQL Server from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern 4.6.2. Select the SQL Server Database Project template, and name the project Database. Click OK to scaffold out the project. Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the Database project, selecting Import and clicking on Database. In the Import Database wizard, we need to configure a connection the local SQL instance. Click Select Connection and configure Server Name to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the bakery database (the DB name that was setup earlier in the SQL instance) and click Connect. Back on the Import Database wizard, click Start to begin the import process and watch the Summary screen complete. Click Finish to close the wizard. The Database Project now has a folder named dbo. Expand it and open Products.sql. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file. Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process. To use this schema in a Windows container, we will build the Project into a .dacpac file and import the file into a container. Create a SQL Server Container Microsoft maintains a set of Docker Containers for mssql-server-linx, mssql-server-windows-developer, and mssql-server-windows-express, and mssql-server-windows. These are stock images that will require us to add our own database, schema, and data. The preferred approach for managing and deploying SQL Server databases is a dacpac. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process. Create a Dockerfile in the Database project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following: # escape=` # ================ # Builder Image # ================ # Downloads dependencies and compiles the SQL Project FROM microsoft/windowsservercore:10.0.14393.1715 AS builder SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] # Install Chocolatey for headless installation of MSFT Build tooling RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; ` Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force # Install Nuget and install Microsoft Data Tools RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\\Chocolatey\\bin\\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210 # Add MSBuild to Path for easier usage ENV MSBUILD_PATH=&quot;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\MSBuild\\15.0\\Bin&quot; RUN $env:PATH = $env:MSBUILD_PATH + &#39;;&#39; + $env:PATH; ` [Environment]::SetEnvironmentVariable(&#39;PATH&#39;, $env:PATH, [EnvironmentVariableTarget]::Machine) # Create a folder in the image and copy over VS Project files WORKDIR C:\\src COPY . . # Build project RUN msbuild Database.sqlproj ` /p:SQLDBExtensionsRefPath=&quot;C:\\Microsoft.Data.Tools.Msbuild.10.0.61708.210\\lib\\net46&quot; ` /p:SqlServerRedistPath=&quot;C:\\Microsoft.Data.Tools.Msbuild.10.0.61708.210\\lib\\net46&quot; ` /p:Configuration=Release # ================ # Database Image # ================ FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715 SHELL [&quot;powershell&quot;, &quot;-Command&quot;, &quot;$ErrorActionPreference = &#39;Stop&#39;;&quot;] RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; ` Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; ` &amp; C:\\Chocolatey\\bin\\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; ` mkdir C:\\database # Copy built dacpac (from earlier build stage) and configuration scripts WORKDIR C:\\init COPY --from=builder C:\\src\\bin\\Release\\Database.dacpac . COPY Initialize-Database.ps1 . COPY SampleData.sql . # Set startup command to initalize the database CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening: Two “stages” are being used in our “multi-stage build”. The first is named “builder” and is responsible for building the Database Project into a resulting .dacpac file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files. The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the .dacpac file from the previous stage, and executing the deployment via the Initialize-Database.ps1 script file. By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the .dacpac file needed for database deployment. The Dockerfile references a few files that need to be present in our Project for the COPY statements to work. In the Database Project, create a new file for Initialize-Database.ps1 and SampleData.sql, then paste in the contents: Initialize-Database.ps1: # Adapted from Microsoft&#39;s SQL Server Express sample: # https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1 # And Docker Labs&#39; SQL Server Lab # https://github.com/docker/labs/tree/master/windows/sql-server param( [Parameter(Mandatory=$false)] [string]$sa_password) # Start the service Write-Verbose &#39;Starting SQL Server&#39; Start-Service MSSQL`$SQLEXPRESS if ($sa_password -ne &quot;_&quot;) { Write-Verbose &#39;Changing SA login credentials&#39; $sqlcmd = &quot;ALTER LOGIN sa with password=&#39;$sa_password&#39;; ALTER LOGIN sa ENABLE;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\\SQLEXPRESS&quot; } # Attach data files if they exist: $mdfPath = &#39;c:\\database\\BakeryDB_Primary.mdf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;CREATE DATABASE BakeryDB ON (FILENAME = N&#39;$mdfPath&#39;)&quot; $ldfPath = &#39;c:\\database\\BakeryDB_Primary.ldf&#39; if ((Test-Path $mdfPath) -eq $true) { $sqlcmd = &quot;$sqlcmd, (FILENAME = N&#39;$ldfPath&#39;)&quot; } $sqlcmd = &quot;$sqlcmd FOR ATTACH;&quot; Write-Verbose &quot;Invoke-Sqlcmd -Query $($sqlcmd) -ServerInstance &#39;.\\SQLEXPRESS&#39;&quot; Invoke-Sqlcmd -Query $sqlcmd -ServerInstance &quot;.\\SQLEXPRESS&quot; } # Deploy or upgrade the database: $SqlPackagePath = &#39;C:\\Microsoft.Data.Tools.Msbuild.10.0.61708.210\\lib\\net46\\SqlPackage.exe&#39; &amp; $SqlPackagePath ` /sf:Database.dacpac ` /a:Script ` /op:create.sql ` /p:CommentOutSetVarDeclarations=true ` /tsn:.\\SQLEXPRESS ` /tdn:BakeryDB ` /tu:sa ` /tp:$sa_password $SqlCmdVars = &quot;DatabaseName=BakeryDB&quot;, &quot;DefaultFilePrefix=BakeryDB&quot;, &quot;DefaultDataPath=c:\\database\\&quot;, &quot;DefaultLogPath=c:\\database\\&quot; Invoke-Sqlcmd -InputFile create.sql -Variable $SqlCmdVars -Verbose Write-Verbose &quot;Deployed dacpac&quot; # Insert sample data Write-Verbose &quot;Inserting Sample Data&quot; Invoke-Sqlcmd -InputFile .\\SampleData.sql -ServerInstance .\\SQLEXPRESS # Relay SQL event logs to Docker $lastCheck = (Get-Date).AddSeconds(-2) while ($true) { Get-EventLog -LogName Application -Source &quot;MSSQL*&quot; -After $lastCheck | Select-Object TimeGenerated, EntryType, Message $lastCheck = Get-Date Start-Sleep -Seconds 2 } SampleData.sql: USE [BakeryDB] GO INSERT INTO [dbo].[Products] ([Name] ,[Description] ,[Price] ,[ImageName]) VALUES (&#39;Carrot Cake&#39; ,&#39;A scrumptious mini-carrot cake encrusted with sliced almonds&#39; ,8.99 ,&#39;carrot_cake.jpg&#39;), (&#39;Lemon Tart&#39; ,&#39;A delicious lemon tart with fresh meringue cooked to perfection&#39; ,9.99 ,&#39;lemon_tart.jpg&#39;), (&#39;Cupcakes&#39; ,&#39;Delectable vanilla and chocolate cupcakes&#39; ,5.99 ,&#39;cupcakes.jpg&#39;), (&#39;Bread&#39; ,&#39;Fresh baked French-style bread&#39; ,1.49 ,&#39;bread.jpg&#39;), (&#39;Pear Tart&#39; ,&#39;A glazed pear tart topped with sliced almonds and a dash of cinnamon&#39; ,5.99 ,&#39;pear_tart.jpg&#39;), (&#39;Chocolate Cake&#39; ,&#39;Rich chocolate frosting cover this chocolate lover’s dream.&#39; ,8.99 ,&#39;chocolate_cake.jpg&#39;) GO The SampleData.sql needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click Properties. From the Properties window, toggle the Build Action to None. With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the ./Bakery/Database directory. docker build -t bakery:database . Once the build completes, test the database locally by running docker run --name dbtest -it --rm -p 1433:1433 -e ACCEPT_EULA=y -e sa_password=Docker123 bakery:database Using docker run with the -it flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s CMD statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container. docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; dbtest Plug the IP address into SQL Server Management Studio with username sa and password Docker123 to verify that the BakeryDB and Products table sample data was successfully generated. We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application. Part 3: Connecting the Web Application and Database In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing docker-compose.yml file. Extend Docker Compose When we last left the humble docker-compose.yml file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional database service: version: &#39;3&#39; services: webapplication: image: webapplication build: context: .\\WebApplication dockerfile: Dockerfile depends_on: - database database: image: database build: context: .\\Database dockerfile: Dockerfile environment: - ACCEPT_EULA=Y - sa_password=Docker123 We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a docker run. With the web application talking to a separate container, we need to define a Connection String for the client. Opening web.config, paste in the &lt;connectionStrings&gt; block into &lt;configuration&gt;. &lt;configuration&gt; &lt;connectionStrings&gt; &lt;add connectionString=&quot;Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123&quot; name=&quot;bakery&quot; providerName=&quot;System.Data.SqlClient&quot; /&gt; &lt;/connectionStrings&gt; &lt;system.web&gt; &lt;compilation debug=&quot;true&quot; targetFramework=&quot;4.0&quot; /&gt; &lt;customErrors mode=&quot;Off&quot;/&gt; &lt;/system.web&gt; &lt;system.data&gt; &lt;DbProviderFactories&gt; &lt;remove invariant=&quot;System.Data.SqlServerCe.4.0&quot; /&gt; &lt;add invariant=&quot;System.Data.SqlServerCe.4.0&quot; name=&quot;Microsoft® SQL Server® Compact 4.0&quot; description=&quot;.NET Framework Data Provider for Microsoft SQL Server Compact&quot; type=&quot;System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91&quot; /&gt; &lt;/DbProviderFactories&gt; &lt;/system.data&gt; &lt;/configuration&gt; The name the same name as the “bakery” .sdf file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries. The Data Source is set to database, which is the name of the Service that is defined in the docker-compose.yml file. Docker’s builtin DNS will resolve the database name for us. Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of Docker Secrets for handling sensitive information. What’s up, Bakery With the docker-compose file polished up we can launch both Services with a simple docker-compose up from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a docker system prune -f to remove dangling images and volumes. Note that the VS Tools for Docker setup several compose files, which we can stack with multiple -f flags. docker-compose -f .\\docker-compose.yml -f .\\docker-compose.override.yml up --build --force-recreate docker inspect -f &quot;{{ .NetworkSettings.Networks.nat.IPAddress }}&quot; bakery_webapplication_1 With the IP address from the docker inspect statement, open the running Web Application in a browser tab. At this point we could likely delete the entire .sdf file from the solution, but as a sanity check I grabbed the IP address for the database (also via docker inspect) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected. Wrap Up Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems. For more information, please see the SQL Server Lab on GitHub, which heavily influenced this post. Thanks!","author":null,"@type":"BlogPosting","url":"http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/","publisher":null,"image":null,"headline":"Modernizing the Web Matrix Bakery Application with Docker and Visual Studio","dateModified":"2017-10-17T02:00:00-04:00","datePublished":"2017-10-17T02:00:00-04:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/10/17/modernizing-bakery-application-docker-visual-studio/"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+<body>
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Steven Follis</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">Home</a>
+                </li>
+                
+				
+                <li>
+                    <a href="/about/">About</a>
+                </li>
+				
+                
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/chicago-stained-glass.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <h1>Modernizing the Web Matrix Bakery Application with Docker and Visual Studio</h1>
+                    
+                    <span class="meta">Posted by Steven Follis on October 17, 2017</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+
+				<p><a href="https://www.microsoft.com/web/webmatrix/">Web Matrix</a> is a code editor that has been around for a <em>very</em> long time and will [sadly] reach end of life on <a href="https://blogs.iis.net/webmatrix/webmatrix-product-support-ends-on-november-1st-2017">November 1, 2017</a>. In honor of this sad day, I wanted to take one of Web Matrix’s starter applications, and generate a Docker File for it.</p>
+
+<p>Why? The sample applications within Web Matrix are old. These 5+ year old web applications pre-date modern MVC patterns and technology, but are representative of legacy applications that enterprises struggle to maintain today. By moving a legacy application into a Docker container, we can move the application to run on a modern infrastructure (Server 2016, Azure, etc.), make deployments far easier via a CI/CD pipeline, and decrease the inherent attack surface.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-logo.png" alt="image" /></p>
+
+<h2 id="pre-requisites">Pre-Requisites</h2>
+
+<ul>
+  <li><a href="https://www.docker.com/docker-windows">Docker for Windows</a></li>
+  <li><a href="https://www.visualstudio.com/vs/community/">Visual Studio 2017 Community Edition</a> (or similar)</li>
+  <li>SQL Server Express (or better) running locally</li>
+</ul>
+
+<h2 id="install-web-matrix">Install Web Matrix</h2>
+
+<p>Web Matrix 3.0 can be installed via the <a href="http://go.microsoft.com/fwlink/?LinkID=286266">Web Platform Installer</a>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-01.png" alt="image" /></p>
+
+<p>Download the WP installer and run the setup program. Any dependencies needed will be automatically downloaded as part of the process (nifty!).</p>
+
+<p>After installing, start the Web Matrix application.</p>
+
+<h1 id="part-1-the-web-application">Part 1: The Web Application</h1>
+
+<h2 id="create-a-sample-bakery-application">Create a sample Bakery application</h2>
+
+<p>When Web Matrix is first started, you are greeted with a few options. For our purposes today, select <strong>New</strong> and <strong>Template Gallery</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-02.png" alt="image" /></p>
+
+<p>The Template Gallery contains several options. Select the <strong>Bakery</strong> template tile, and name the site <strong>Bakery</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-03.png" alt="image" /></p>
+
+<blockquote>
+  <p>Feel free to try this same exercise with the Photo Gallery or Personal Site templates</p>
+</blockquote>
+
+<p>Once selected, Web Matrix will download the source files for the application from the internet and pull down any dependencies.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-04.png" alt="image" /></p>
+
+<p>Once the solution is visible, click <strong>Run</strong> from the top left corner of the ribbon to launch the application in a browser.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-05.png" alt="image" /></p>
+
+<p>Meet the Fourth Coffee application. This ASP.NET Web Forms e-commerce application shows a menu option of several delectable treats, shows a detailed view for each, and allows the user to place an order. Remember when I said this application was old? Order receipts are setup to use Hotmail, which was retired <a href="https://www.geekwire.com/2012/farewell-hotmail-microsoft-rolling-outlook-webmail-service/">back in 2012</a> for Outlook.com. Check out <code class="highlighter-rouge">Order.cshtml</code>:</p>
+
+<p><img src="/content/images/2017/10/webmatrix-06.png" alt="image" /></p>
+
+<p>With the application generated and running, let’s setup a Visual Studio solution for easier management.</p>
+
+<blockquote>
+  <p>Application files should be located at <code class="highlighter-rouge">C:\Users\&lt;your username&gt;\Documents\My Web Sites</code></p>
+</blockquote>
+
+<h2 id="configure-the-application-for-visual-studio">Configure the application for Visual Studio</h2>
+
+<p>Web Matrix includes a nifty feature to auto-generate a Visual Studio solution from our code, making it easier to manage our Bakery application in a modern (and supported) IDE. In Web Matrix, click <strong>Visual Studio</strong> from the ribbon bar.</p>
+
+<p>I have <a href="https://www.visualstudio.com/vs/community/">Visual Studio 2017 Community</a> edition installed, but any recent-ish version of VS should work.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-07.png" alt="image" /></p>
+
+<p>Visual Studio then opens, with a VS Solution and Project generated with our code. Hit <strong>F5</strong> to enter debug mode, and you should see the same web application in the browser as before.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-08.png" alt="image" /></p>
+
+<p>In File Explorer, we have a bit of a mismatch. Our original files are located at <code class="highlighter-rouge">C:\Users\&lt;your username&gt;\Documents\My Web Sites</code>, but our VS Solution is located at <code class="highlighter-rouge">C:\Users\&lt;your username&gt;\Documents\WebMatrix Solutions\Projects</code>. Plus, the project generated by VS wasn’t a formal Web Application project, which will impact how easily we can take advtange of tooling in a later step.</p>
+
+<p>Instead of relying on this autogenerated VS Solution, let’s backup and create our own new solution and copy over the files. This will ensure we have all solution files in a single folder on our hardrive, and make it easier to manage the web application going forward.</p>
+
+<p>Close the open Solution in Visual Studio by selecting <strong>File</strong> -&gt; <strong>Close</strong>. Then select <strong>File</strong> -&gt; <strong>New Project</strong>, naming the Solution <strong>Bakery</strong> and selecting the <strong>ASP.NET Empty Web Application</strong> template from the Installed Visual C# web templates.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-09.png" alt="image" /></p>
+
+<p>Be sure to also select <strong>.NET Framework 4</strong> from the New Project’s dropdown. This was found from the left-hand navigation bar of <strong>Site</strong> –&gt; <strong>Settings</strong> –&gt; <strong>Select .NET Version</strong> to see that it is configured to use .NET 4.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-10.png" alt="image" /></p>
+
+<p>Once Visual Studio scaffolds out our Solution and Project, delete <strong>web.config</strong> since we have one already created. Then, to import the entirety of our application files, open the Project in Windows Explorer and copy over all of the files from the WebMatrix folder. In my case that meant opening <code class="highlighter-rouge">C:\Users\steven\Documents\visual studio 2017\Projects\Bakery\WebApplication</code> and pasting in all files from <code class="highlighter-rouge">C:\Users\steven\Documents\My Web Sites\Bakery</code>.</p>
+
+<p>Once copied into the same directory, we need to let Visual Studio know the files are there. Right click the VS Project and select <strong>Add</strong> -&gt; <strong>Existing Item</strong></p>
+
+<p><img src="/content/images/2017/10/webmatrix-11.png" alt="image" /></p>
+
+<p>Then select all items in your Project’s folder (except for the existing <code class="highlighter-rouge">.csproj</code> Project FIle) and select <strong>Add</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-12.png" alt="image" /></p>
+
+<p>Now in Visual Studio, all files are present. Hit <strong>F5</strong> to again ensure that the Web Application loads as expected in a browser window.</p>
+
+<p>That bit of roundabout VS kung-fu will make our lives easier over the longterm, and reflects the evolution of the VS tooling over the past decade. With our application all setup in a VS Solution, let’s get to Dockerizing!</p>
+
+<h2 id="docker-ize-the-application">Docker-ize the Application</h2>
+
+<p>Now comes the fun part! To wrap our application in a container, we need to first create a Dockerfile. We could create one manually, but since we are using Visual Studio we can take advantage of the <a href="https://docs.microsoft.com/en-us/aspnet/core/publishing/visual-studio-tools-for-docker">Visual Studio tools for Docker</a>. Right-click on the WebApplication project, select <strong>Add</strong>, and click <strong>Docker Support</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-13.png" alt="image" /></p>
+
+<p>The VS Tools for Docker automatically generate a Dockerfile and series of docker-compose files for us, based on characterisitcs of our application. Notice the green debugging arrow now says “Docker”, as the tooling will now launch our application inside of a Docker container, with a debugger attached. Normally this works flawlessly, however if you hit <strong>F5</strong> to launch a new debugging session you’ll likely meet this lovely screen:</p>
+
+<p><img src="/content/images/2017/10/webmatrix-14.png" alt="image" /></p>
+
+<p>With an error saying:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>System.Data.SqlServerCe.SqlCeException occurred
+  HResult=0x80004005
+  Message=The file resolves to a path that is too long. The maximum length is 260 characters. [ File name = C:\inetpub\wwwroot\App_Data\bakery.sdf ]
+  Source=SQL Server Compact ADO.NET Data Provider
+  StackTrace:
+&lt;Cannot evaluate the exception stack trace&gt;
+</code></pre></div></div>
+
+<p>“The file resolves to a path that is too long” was a new error for me, and one that I never completely tracked down online. I did, with <a href="https://blog.sixeyed.com/">Elton Stoneman</a>’s help (his new <a href="https://www.amazon.co.uk/Docker-Windows-Elton-Stoneman-ebook/dp/B0711Y4J9K">book</a> is terrific, btw #shamelessplug) find a workaround. Creating a new Web Site with an updated AppPool Identity Type, we can get past the error that I suspect is related to file permissions. To make these edits, we will adjust our Dockerfile.</p>
+
+<p>Open the Dockerfile that was auto-generated for us by the VS Tools for Docker:</p>
+
+<pre><code class="language-Dockerfile">FROM microsoft/aspnet:4.7
+ARG source
+WORKDIR /inetpub/wwwroot
+COPY ${source:-obj/Docker/publish} .
+</code></pre>
+
+<p>Update the <strong>Dockerfile</strong> with a new <code class="highlighter-rouge">RUN</code> statement and a fresh, non-IIS default working directory:</p>
+
+<pre><code class="language-Dockerfile">FROM microsoft/aspnet:4.7
+ARG source
+WORKDIR /web-app
+RUN Remove-Website -Name 'Default Web Site'; \ 
+    Set-ItemProperty IIS:\AppPools\DefaultAppPool -Name processModel.identityType -Value LocalSystem; \
+    New-Website -Name 'web-app' -Port 80 -PhysicalPath 'C:\web-app' -ApplicationPool 'DefaultAppPool'
+COPY ${source:-obj/Docker/publish} .
+</code></pre>
+
+<p>To avoid any insertion of the tooling’s debugging system, switch the Configuration to <strong>Release</strong>, and hit <strong>CTRL-F5</strong> to “start the application without debugging”. The VS Tools for Docker look to be injecting debugging functionality when the container starts, which conflicts with the aspnet image’s <a href="https://github.com/Microsoft/aspnet-docker/blob/master/4.7/Dockerfile#L27">entrypoint</a>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-15.png" alt="image" /></p>
+
+<p>Visual Studio will start the application without debugging, and soon in our browser we can see the Bakery application running now on our local host, but in a Windows Container via Docker:</p>
+
+<p><img src="/content/images/2017/10/webmatrix-16.png" alt="image" /></p>
+
+<p>Note the IP address, which we could also get by running the following from a PowerShell window on the host for the specific container:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker inspect <span class="nt">-f</span> <span class="s2">"{{ .NetworkSettings.Networks.nat.IPAddress }}"</span> &lt;your container name&gt;
+</code></pre></div></div>
+
+<p>There is likely a more elegant and plain better method for getting past the error experienced earlier, thus regaining the ability to use debugging directly in VS. The Visual Studio Tools for Docker setup a terrific pipeline of functionality, but somehow negatively impacted the permissions of the Bakery application.</p>
+
+<h1 id="part-2-the-database">Part 2: The Database</h1>
+
+<h2 id="externalize-the-database">Externalize the database</h2>
+
+<p>The Bakery appplication is using <a href="https://en.wikipedia.org/wiki/SQL_Server_Compact">Microsoft SQL Server Compact (SQL CE)</a>, a lightweight RDBMS used for mobile applications and embedded systems (and Web Matrix demo applications, apparently). Since CE was deprecated 4.5+ years ago, the next step I wanted to take with Bakery was to move the database from a single <code class="highlighter-rouge">.sdf</code> file into a full fledged Microsoft SQL Server Developer Edition database. Microsoft publishes an <a href="https://hub.docker.com/r/microsoft/mssql-server-windows-express/">official image on Docker Hub</a>, but first we need to get our existing product catalog migrated.</p>
+
+<p>Opening SQL Server Management Studio 17, I had expected to be able to migrate my <code class="highlighter-rouge">.sdf</code> database to a format that would work with SQL Server (or at last generate a <code class="highlighter-rouge">.sql</code> file that could reproduce the data). No-go. Turns out the support for SQL CE within SSMS studio was deprecated in SSMS 2008. Isn’t legacy fun? Fortunately, Web Matrix has a feature where an SQL CE file can be exported into a SQL Server Express instance.</p>
+
+<blockquote>
+  <p>There are numerous <a href="http://erikej.blogspot.dk/2009/04/sql-compact-3rd-party-tools.html">3rd party tools</a> for getting data out of a SQL CE file if Web Matrix isn’t an option (or just <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;uact=8&amp;ved=0ahUKEwjmx4eRgurWAhWE7SYKHS_gBqoQFggmMAA&amp;url=https%3A%2F%2Fwww.microsoft.com%2Fen-us%2Fdownload%2Fdetails.aspx%3Fid%3D7593&amp;usg=AOvVaw2_3XRGqDBwqs233EoTgBTa">download SSMS 2008</a>)</p>
+</blockquote>
+
+<p>Opening Web Matrix and navigating to <strong>Databases</strong> from the left navigation, select <strong>bakery.sdf</strong> and on the ribbon select <strong>Migrate</strong></p>
+
+<p><img src="/content/images/2017/10/webmatrix-17.png" alt="image" /></p>
+
+<blockquote>
+  <p><strong>Note</strong>: you need SQL Server installed locally for this to work. Express works fine (is what I used)</p>
+</blockquote>
+
+<p>Adjust Web Matrix’s connection box to use your database credentials. My local SQL Server Express instance uses Windows authentication. Once settings are adjusted, click <strong>OK</strong> and Web Matrix will automatically migrate the data.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-18.png" alt="image" /></p>
+
+<p>Connecting to the local SQL Server instance via SQL Server Management Studio, I can see a new “bakery” database has been created and all of the data is present.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-19.png" alt="image" /></p>
+
+<h2 id="create-a-sql-project">Create a SQL Project</h2>
+
+<p>We have now freed our data from the deprecated world of SQL CE, but how will we get it into a container running SQL Server? For this we’ll setup a SQL Project in Visual Studio, which will help us manage future schema updates in a familiar dev environment and facilitate checkins to a source control system.</p>
+
+<p>To create the project, right click on the Visual Studio solution, hover on <strong>Add</strong> and select <strong>New Project</strong></p>
+
+<p><img src="/content/images/2017/10/webmatrix-20.png" alt="image" /></p>
+
+<p>Select <strong>SQL Server</strong> from the left-hand navigation pane, bumping the .NET Framework dropdown back up to a modern <strong>4.6.2</strong>. Select the <strong>SQL Server Database Project</strong> template, and name the project <strong>Database</strong>. Click OK to scaffold out the project.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-21.png" alt="image" /></p>
+
+<p>Once the project has been created, we need to populate it with schema data. In an earlier step we exported the database data to a local instance of MS SQL Server Express. We can import the data from that local instance into Visual Studio by right clicking the <strong>Database</strong> project, selecting <strong>Import</strong> and clicking on <strong>Database</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-22.png" alt="image" /></p>
+
+<p>In the Import Database wizard, we need to configure a connection the local SQL instance. Click <strong>Select Connection</strong> and configure <strong>Server Name</strong> to match your local instance. Depending on how you setup SQL, configure Windows or SQL Authentication. Finally, select the <strong>bakery</strong> database (the DB name that was setup earlier in the SQL instance) and click <strong>Connect</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-23.png" alt="image" /></p>
+
+<p>Back on the Import Database wizard, click <strong>Start</strong> to begin the import process and watch the Summary screen complete. Click <strong>Finish</strong> to close the wizard.</p>
+
+<p>The Database Project now has a folder named <strong>dbo</strong>. Expand it and open <strong>Products.sql</strong>. From the Design View we can see the names of each of the columns for the Products table, representing the schema originally setup in the SQL CE file.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-24.png" alt="image" /></p>
+
+<p>Setting up a formal Visual Studio Project for our SQL Database makes updating schemas a straight forward and structured process.  To use this schema in a Windows container, we will build the Project into a <code class="highlighter-rouge">.dacpac</code> file and import the file into a container.</p>
+
+<h2 id="create-a-sql-server-container">Create a SQL Server Container</h2>
+
+<p>Microsoft maintains a set of Docker Containers for <a href="https://hub.docker.com/r/microsoft/mssql-server-linux/">mssql-server-linx</a>, <a href="https://hub.docker.com/r/microsoft/mssql-server-windows-developer/">mssql-server-windows-developer</a>, and <a href="https://hub.docker.com/r/microsoft/mssql-server-windows-express/">mssql-server-windows-express</a>, and <a href="https://hub.docker.com/r/microsoft/mssql-server-windows/">mssql-server-windows</a>. These are stock images that will require us to add our own database, schema, and data.</p>
+
+<p>The preferred approach for managing and deploying SQL Server databases is a <a href="https://docs.microsoft.com/en-us/sql/relational-databases/data-tier-applications/data-tier-applications">dacpac</a>. This file contains a deployment asset that can be instantiated in a variety of ways, and avoids miles of hand-created script files. One of the benefits of moving our database schema into a Visual Studio Project is the ability to generate a dacpac file via a traditional MSBuild process.</p>
+
+<p>Create a Dockerfile in the <strong>Database</strong> project. Windows does not like to create files without a file extension (as is customary for Dockerfiles) so one option is to copy/paste from the WebApplication Project into the Database Project. Once your Dockerfile is present, override its contents with the following:</p>
+
+<pre><code class="language-Dockerfile"># escape=`
+
+# ================
+# Builder Image
+# ================
+# Downloads dependencies and compiles the SQL Project
+FROM microsoft/windowsservercore:10.0.14393.1715 AS builder
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+# Install Chocolatey for headless installation of MSFT Build tooling
+RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; `
+    Install-Package -Name microsoft-build-tools -RequiredVersion 15.0.26228.0 -Force; `
+    Install-Package -Name netfx-4.6.2-devpack -RequiredVersion 4.6.01590.20170129 -Force
+
+# Install Nuget and install Microsoft Data Tools
+RUN Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; `
+    &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210
+
+# Add MSBuild to Path for easier usage
+ENV MSBUILD_PATH="C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin"
+RUN $env:PATH = $env:MSBUILD_PATH + ';' + $env:PATH; `
+    [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine)
+
+# Create a folder in the image and copy over VS Project files
+WORKDIR C:\src
+COPY . .
+
+# Build project
+RUN msbuild Database.sqlproj `
+      /p:SQLDBExtensionsRefPath="C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46" `
+      /p:SqlServerRedistPath="C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46" `
+	  /p:Configuration=Release
+
+# ================
+# Database Image
+# ================
+FROM microsoft/mssql-server-windows-express:2017-windowsservercore-10.0.14393.1715
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+RUN Install-PackageProvider -Name chocolatey -RequiredVersion 2.8.5.130 -Force; `
+	Install-Package nuget.commandline -RequiredVersion 3.5.0 -Force; `
+    &amp; C:\Chocolatey\bin\nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61708.210; `
+	mkdir C:\database
+
+# Copy built dacpac (from earlier build stage) and configuration scripts
+WORKDIR C:\init
+COPY --from=builder C:\src\bin\Release\Database.dacpac .
+COPY Initialize-Database.ps1 .
+COPY SampleData.sql .
+
+# Set startup command to initalize the database
+CMD ./Initialize-Database.ps1 -sa_password $env:sa_password -Verbose
+</code></pre>
+
+<p>This is a far more complex Dockerfile than the Web Application, so let’s break down what’s happening:</p>
+
+<ol>
+  <li>
+    <p>Two “stages” are being used in our <a href="https://docs.docker.com/engine/userguide/eng-image/multistage-build/">“multi-stage build”</a>. The first is named “builder” and is responsible for building the Database Project into a resulting <code class="highlighter-rouge">.dacpac</code> file. This stage begins with the Windows Server Core Image, installs several msbuild dependencies from Choclatey and NuGet, copies the source project into the container, and then executes a msbuild on the Project files.</p>
+  </li>
+  <li>
+    <p>The second “production” stage starts with a MS SQL Server Express image and deploys the dacpac into a new database. This is done by installing the Microsoft Data Tools necessary for dacpac deployment, copying the <code class="highlighter-rouge">.dacpac</code> file from the previous stage, and executing the deployment via the <code class="highlighter-rouge">Initialize-Database.ps1</code> script file.</p>
+  </li>
+  <li>
+    <p>By splitting our build into two stages, we were able to keep the size of our image down. Had we shoved the entire build process into a single stage, the “production” image would have numerous msbuild dependencies that are unnecssary. Using two stages allows us to scrap the intermediary builder files as soon as we have the <code class="highlighter-rouge">.dacpac</code> file needed for database deployment.</p>
+  </li>
+</ol>
+
+<p>The Dockerfile references a few files that need to be present in our Project for the <strong>COPY</strong> statements to work. In the Database Project, create a new file for <code class="highlighter-rouge">Initialize-Database.ps1</code> and <code class="highlighter-rouge">SampleData.sql</code>, then paste in the contents:</p>
+
+<p>Initialize-Database.ps1:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c1"># Adapted from Microsoft's SQL Server Express sample:</span>
+  <span class="c1"># https://github.com/Microsoft/sql-server-samples/blob/master/samples/manage/windows-containers/mssql-server-2016-express-windows/start.ps1</span>
+  <span class="c1"># And Docker Labs' SQL Server Lab</span>
+  <span class="c1"># https://github.com/docker/labs/tree/master/windows/sql-server</span>
+
+  <span class="k">param</span><span class="o">(</span>
+      <span class="o">[</span>Parameter<span class="o">(</span><span class="nv">Mandatory</span><span class="o">=</span><span class="nv">$false</span><span class="o">)]</span>
+      <span class="o">[</span><span class="kt">string</span><span class="o">]</span><span class="nv">$sa_password</span><span class="o">)</span>
+
+  <span class="c1"># Start the service</span>
+  <span class="nb">Write-Verbose</span> <span class="s1">'Starting SQL Server'</span>
+  <span class="nb">Start-Service </span>MSSQL<span class="se">`$</span>SQLEXPRESS
+
+  <span class="k">if</span> <span class="o">(</span><span class="nv">$sa_password</span> -ne <span class="s2">"_"</span><span class="o">)</span> <span class="o">{</span>
+    <span class="nb">Write-Verbose</span> <span class="s1">'Changing SA login credentials'</span>
+      <span class="nv">$sqlcmd</span> <span class="o">=</span> <span class="s2">"ALTER LOGIN sa with password='</span><span class="nv">$sa_password</span><span class="s2">'; ALTER LOGIN sa ENABLE;"</span>
+      Invoke-Sqlcmd -Query <span class="nv">$sqlcmd</span> -ServerInstance <span class="s2">".\SQLEXPRESS"</span> 
+  <span class="o">}</span>
+
+  <span class="c1"># Attach data files if they exist: </span>
+  <span class="nv">$mdfPath</span> <span class="o">=</span> <span class="s1">'c:\database\BakeryDB_Primary.mdf'</span>
+  <span class="k">if</span> <span class="o">((</span><span class="nb">Test-Path</span> <span class="nv">$mdfPath</span><span class="o">)</span> -eq <span class="nv">$true</span><span class="o">)</span> <span class="o">{</span>
+      <span class="nv">$sqlcmd</span> <span class="o">=</span> <span class="s2">"CREATE DATABASE BakeryDB ON (FILENAME = N'</span><span class="nv">$mdfPath</span><span class="s2">')"</span>
+      <span class="nv">$ldfPath</span> <span class="o">=</span> <span class="s1">'c:\database\BakeryDB_Primary.ldf'</span>
+      <span class="k">if</span> <span class="o">((</span><span class="nb">Test-Path</span> <span class="nv">$mdfPath</span><span class="o">)</span> -eq <span class="nv">$true</span><span class="o">)</span> <span class="o">{</span>
+          <span class="nv">$sqlcmd</span> <span class="o">=</span>  <span class="s2">"</span><span class="nv">$sqlcmd</span><span class="s2">, (FILENAME = N'</span><span class="nv">$ldfPath</span><span class="s2">')"</span>
+      <span class="o">}</span>
+      <span class="nv">$sqlcmd</span> <span class="o">=</span> <span class="s2">"</span><span class="nv">$sqlcmd</span><span class="s2"> FOR ATTACH;"</span>
+      <span class="nb">Write-Verbose</span> <span class="s2">"Invoke-Sqlcmd -Query </span><span class="k">$(</span><span class="nv">$sqlcmd</span><span class="k">)</span><span class="s2"> -ServerInstance '.\SQLEXPRESS'"</span>
+      Invoke-Sqlcmd -Query <span class="nv">$sqlcmd</span> -ServerInstance <span class="s2">".\SQLEXPRESS"</span>
+  <span class="o">}</span>
+
+  <span class="c1"># Deploy or upgrade the database:</span>
+  <span class="nv">$SqlPackagePath</span> <span class="o">=</span> <span class="s1">'C:\Microsoft.Data.Tools.Msbuild.10.0.61708.210\lib\net46\SqlPackage.exe'</span>
+  &amp; <span class="nv">$SqlPackagePath</span>  <span class="se">`</span>
+    /sf:Database.dacpac <span class="se">`</span>
+    /a:Script <span class="se">`</span>
+    /op:create.sql <span class="se">`</span>
+    /p:CommentOutSetVarDeclarations<span class="o">=</span><span class="nb">true</span> <span class="se">`</span>
+    /tsn:.\SQLEXPRESS <span class="se">`</span>
+    /tdn:BakeryDB <span class="se">`</span>
+    /tu:sa <span class="se">`</span>
+    /tp:<span class="nv">$sa_password</span> 
+
+<span class="nv">$SqlCmdVars</span> <span class="o">=</span> <span class="s2">"DatabaseName=BakeryDB"</span>, <span class="s2">"DefaultFilePrefix=BakeryDB"</span>, <span class="s2">"DefaultDataPath=c:\database\"</span>, <span class="s2">"DefaultLogPath=c:\database\"</span>  
+Invoke-Sqlcmd -InputFile create.sql -Variable <span class="nv">$SqlCmdVars</span> -Verbose
+<span class="nb">Write-Verbose</span> <span class="s2">"Deployed dacpac"</span>
+
+<span class="c1"># Insert sample data</span>
+<span class="nb">Write-Verbose</span> <span class="s2">"Inserting Sample Data"</span>
+Invoke-Sqlcmd -InputFile .\SampleData.sql -ServerInstance .\SQLEXPRESS
+
+<span class="c1"># Relay SQL event logs to Docker</span>
+  <span class="nv">$lastCheck</span> <span class="o">=</span> <span class="o">(</span><span class="nb">Get-Date</span><span class="o">)</span>.AddSeconds<span class="o">(</span>-2<span class="o">)</span> 
+  <span class="k">while</span> <span class="o">(</span><span class="nv">$true</span><span class="o">)</span> <span class="o">{</span> 
+      <span class="nb">Get-EventLog</span> -LogName Application -Source <span class="s2">"MSSQL*"</span> -After <span class="nv">$lastCheck</span> | <span class="nb">Select-Object </span>TimeGenerated, EntryType, Message	 
+      <span class="nv">$lastCheck</span> <span class="o">=</span> <span class="nb">Get-Date 
+      Start-Sleep</span> -Seconds 2 
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<p>SampleData.sql:</p>
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">USE</span> <span class="p">[</span><span class="n">BakeryDB</span><span class="p">]</span>
+  <span class="k">GO</span>
+
+  <span class="k">INSERT</span> <span class="k">INTO</span> <span class="p">[</span><span class="n">dbo</span><span class="p">].[</span><span class="n">Products</span><span class="p">]</span>
+            <span class="p">([</span><span class="n">Name</span><span class="p">]</span>
+            <span class="p">,[</span><span class="n">Description</span><span class="p">]</span>
+            <span class="p">,[</span><span class="n">Price</span><span class="p">]</span>
+            <span class="p">,[</span><span class="n">ImageName</span><span class="p">])</span>
+      <span class="k">VALUES</span>
+            <span class="p">(</span><span class="s1">'Carrot Cake'</span>
+            <span class="p">,</span><span class="s1">'A scrumptious mini-carrot cake encrusted with sliced almonds'</span>
+            <span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">99</span>
+            <span class="p">,</span><span class="s1">'carrot_cake.jpg'</span><span class="p">),</span>
+
+        <span class="p">(</span><span class="s1">'Lemon Tart'</span>
+            <span class="p">,</span><span class="s1">'A delicious lemon tart with fresh meringue cooked to perfection'</span>
+            <span class="p">,</span><span class="mi">9</span><span class="p">.</span><span class="mi">99</span>
+            <span class="p">,</span><span class="s1">'lemon_tart.jpg'</span><span class="p">),</span>
+
+        <span class="p">(</span><span class="s1">'Cupcakes'</span>
+            <span class="p">,</span><span class="s1">'Delectable vanilla and chocolate cupcakes'</span>
+            <span class="p">,</span><span class="mi">5</span><span class="p">.</span><span class="mi">99</span>
+            <span class="p">,</span><span class="s1">'cupcakes.jpg'</span><span class="p">),</span>
+
+        <span class="p">(</span><span class="s1">'Bread'</span>
+            <span class="p">,</span><span class="s1">'Fresh baked French-style bread'</span>
+            <span class="p">,</span><span class="mi">1</span><span class="p">.</span><span class="mi">49</span>
+            <span class="p">,</span><span class="s1">'bread.jpg'</span><span class="p">),</span>
+
+        <span class="p">(</span><span class="s1">'Pear Tart'</span>
+            <span class="p">,</span><span class="s1">'A glazed pear tart topped with sliced almonds and a dash of cinnamon'</span>
+            <span class="p">,</span><span class="mi">5</span><span class="p">.</span><span class="mi">99</span>
+            <span class="p">,</span><span class="s1">'pear_tart.jpg'</span><span class="p">),</span>
+
+        <span class="p">(</span><span class="s1">'Chocolate Cake'</span>
+            <span class="p">,</span><span class="s1">'Rich chocolate frosting cover this chocolate lover’s dream.'</span>
+            <span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">99</span>
+            <span class="p">,</span><span class="s1">'chocolate_cake.jpg'</span><span class="p">)</span>
+  <span class="k">GO</span>
+</code></pre></div></div>
+
+<p>The <strong>SampleData.sql</strong> needs one additional piece of configuration. Since this is a SQL Project it will try to build the file as part of MSBuild. We are only using it to provide sample data after the .dacpac has been restored, so to disable this default build behavior right click on the file and click <strong>Properties</strong>. From the Properties window, toggle the <strong>Build Action</strong> to <strong>None</strong>.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-25.png" alt="image" /></p>
+
+<p>With out Dockerfile and supporting files created in the VS Project, open a PowerShell window and build the file from the <code class="highlighter-rouge">./Bakery/Database</code> directory.</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker build <span class="nt">-t</span> bakery:database <span class="nb">.</span>
+</code></pre></div></div>
+
+<p><img src="/content/images/2017/10/webmatrix-26.png" alt="image" /></p>
+
+<p>Once the build completes, test the database locally by running</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--name</span> dbtest <span class="nt">-it</span> <span class="nt">--rm</span> <span class="nt">-p</span> 1433:1433 <span class="nt">-e</span> <span class="nv">ACCEPT_EULA</span><span class="o">=</span>y <span class="nt">-e</span> <span class="nv">sa_password</span><span class="o">=</span>Docker123 bakery:database
+</code></pre></div></div>
+
+<p>Using <code class="highlighter-rouge">docker run</code> with the <code class="highlighter-rouge">-it</code> flag runs the container in interactive mode. This allows us to see the output right inline with our terminal. You should see the database initialization script fire up to restore the database and insert sample data per our Dockerfile’s <strong>CMD</strong> statement. Once the sample data has been inserted, open a second powershell window to get the ip address of the container.</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker inspect <span class="nt">-f</span> <span class="s2">"{{ .NetworkSettings.Networks.nat.IPAddress }}"</span> dbtest
+</code></pre></div></div>
+
+<p>Plug the IP address into SQL Server Management Studio with username <strong>sa</strong> and password <strong>Docker123</strong> to verify that the BakeryDB and Products table sample data was successfully generated.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-27.png" alt="image" /></p>
+
+<p>We have now created a dedicated SQL Server container complete with a database, products table, and sample data from the original SQL CE content. The final step will be tying the database to the web application.</p>
+
+<h1 id="part-3-connecting-the-web-application-and-database">Part 3: Connecting the Web Application and Database</h1>
+
+<p>In Part 1 we containerized a web application, including its App_Data folder holding a SQL CE database. In Part 2 we moved that database to its own dedicated container, but the Web Application is currently unaware of such a momentous activity. To plumb these two steps together, we will update the existing <code class="highlighter-rouge">docker-compose.yml</code> file.</p>
+
+<h2 id="extend-docker-compose">Extend Docker Compose</h2>
+
+<p>When we last left the humble <code class="highlighter-rouge">docker-compose.yml</code> file, we had finished Part 1. Compose files exist to organize multiple application components or tiers into a single deployable unit. We can manage the lifecycle of the Bakery workload with a single file, rather than juggling separate webapplication and database scripts. Since we only had a web application, the yaml file only consisted of 1 defined Service. To extend this file with our database, update the file with an additional <strong>database</strong> service:</p>
+
+<div class="language-yml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">version</span><span class="pi">:</span> <span class="s1">'</span><span class="s">3'</span>
+
+<span class="na">services</span><span class="pi">:</span>
+  <span class="na">webapplication</span><span class="pi">:</span>
+    <span class="na">image</span><span class="pi">:</span> <span class="s">webapplication</span>
+    <span class="na">build</span><span class="pi">:</span>
+      <span class="na">context</span><span class="pi">:</span> <span class="s">.\WebApplication</span>
+      <span class="na">dockerfile</span><span class="pi">:</span> <span class="s">Dockerfile</span>
+    <span class="na">depends_on</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s">database</span>
+  <span class="na">database</span><span class="pi">:</span>
+    <span class="na">image</span><span class="pi">:</span> <span class="s">database</span>
+    <span class="na">build</span><span class="pi">:</span>
+      <span class="na">context</span><span class="pi">:</span> <span class="s">.\Database</span>
+      <span class="na">dockerfile</span><span class="pi">:</span> <span class="s">Dockerfile</span>
+    <span class="na">environment</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s">ACCEPT_EULA=Y</span>
+      <span class="pi">-</span> <span class="s">sa_password=Docker123</span>
+</code></pre></div></div>
+
+<p>We have also defined a dependency between the webapplication tier and loaded the environment variables that we previously defined during a <code class="highlighter-rouge">docker run</code>.</p>
+
+<p>With the web application talking to a separate container, we need to define a Connection String for the client. Opening <code class="highlighter-rouge">web.config</code>, paste in the <code class="highlighter-rouge">&lt;connectionStrings&gt;</code> block into <code class="highlighter-rouge">&lt;configuration&gt;</code>.</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;configuration&gt;</span>
+  <span class="nt">&lt;connectionStrings&gt;</span>
+      <span class="nt">&lt;add</span> <span class="na">connectionString=</span><span class="s">"Data Source=database,1433;Initial Catalog=BakeryDB;User ID=sa;Password=Docker123"</span> <span class="na">name=</span><span class="s">"bakery"</span> <span class="na">providerName=</span><span class="s">"System.Data.SqlClient"</span> <span class="nt">/&gt;</span>
+  <span class="nt">&lt;/connectionStrings&gt;</span>
+  <span class="nt">&lt;system.web&gt;</span>
+    <span class="nt">&lt;compilation</span> <span class="na">debug=</span><span class="s">"true"</span> <span class="na">targetFramework=</span><span class="s">"4.0"</span> <span class="nt">/&gt;</span>
+    <span class="nt">&lt;customErrors</span> <span class="na">mode=</span><span class="s">"Off"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;/system.web&gt;</span>
+  <span class="nt">&lt;system.data&gt;</span>
+    <span class="nt">&lt;DbProviderFactories&gt;</span>
+      <span class="nt">&lt;remove</span> <span class="na">invariant=</span><span class="s">"System.Data.SqlServerCe.4.0"</span> <span class="nt">/&gt;</span>
+      <span class="nt">&lt;add</span> <span class="na">invariant=</span><span class="s">"System.Data.SqlServerCe.4.0"</span> <span class="na">name=</span><span class="s">"Microsoft® SQL Server® Compact 4.0"</span> <span class="na">description=</span><span class="s">".NET Framework Data Provider for Microsoft SQL Server Compact"</span> <span class="na">type=</span><span class="s">"System.Data.SqlServerCe.SqlCeProviderFactory, System.Data.SqlServerCe, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"</span> <span class="nt">/&gt;</span>
+    <span class="nt">&lt;/DbProviderFactories&gt;</span>
+  <span class="nt">&lt;/system.data&gt;</span>
+<span class="nt">&lt;/configuration&gt;</span>
+</code></pre></div></div>
+
+<ul>
+  <li>
+    <p>The <code class="highlighter-rouge">name</code> the same name as the “bakery” <code class="highlighter-rouge">.sdf</code> file previously used as the database. By using the same name we can avoid re-coding each of our pages’ SQL queries.</p>
+  </li>
+  <li>
+    <p>The <code class="highlighter-rouge">Data Source</code> is set to <code class="highlighter-rouge">database</code>, which is the name of the Service that is defined in the <code class="highlighter-rouge">docker-compose.yml</code> file. Docker’s builtin DNS will resolve the database name for us.</p>
+  </li>
+  <li>
+    <p>Putting a password directly into the Connection String isn’t optimal, and in a future post we’ll explore the use of <a href="https://docs.docker.com/engine/swarm/secrets/">Docker Secrets</a> for handling sensitive information.</p>
+  </li>
+</ul>
+
+<h2 id="whats-up-bakery">What’s up, Bakery</h2>
+
+<p>With the docker-compose file polished up we can launch both Services with a simple <code class="highlighter-rouge">docker-compose up</code> from the root of the VS Solution directory. However, since we’ve been thrashing around with many builds, let’s force a rebuild for the images as the Bakery solution starts up. Feel free to tidy up by removing all running containers and running a <code class="highlighter-rouge">docker system prune -f</code> to remove dangling images and volumes.</p>
+
+<blockquote>
+  <p>Note that the VS Tools for Docker setup several compose files, which we can stack with multiple <code class="highlighter-rouge">-f</code> flags.</p>
+</blockquote>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker-compose <span class="nt">-f</span> .<span class="se">\d</span>ocker-compose.yml <span class="nt">-f</span> .<span class="se">\d</span>ocker-compose.override.yml up <span class="nt">--build</span> <span class="nt">--force-recreate</span>
+
+docker inspect <span class="nt">-f</span> <span class="s2">"{{ .NetworkSettings.Networks.nat.IPAddress }}"</span> bakery_webapplication_1
+</code></pre></div></div>
+
+<p>With the IP address from the <code class="highlighter-rouge">docker inspect</code> statement, open the running Web Application in a browser tab. At this point we could likely delete the entire <code class="highlighter-rouge">.sdf</code> file from the solution, but as a sanity check I grabbed the IP address for the database (also via <code class="highlighter-rouge">docker inspect</code>) and used SSMS to add a row called “Brownie”. Refreshing the browser shows the new product alongside its peers as expected.</p>
+
+<p><img src="/content/images/2017/10/webmatrix-28.png" alt="image" /></p>
+
+<h1 id="wrap-up">Wrap Up</h1>
+
+<p>Whew! That was fun! We have successfully taken a nearly decade-old application and moved each of its two tiers into a container. In doing so we used multi-stage builds, the Visual Studio Tools for Docker, and Docker Store images from Microsoft. Our Visual Studio solution can now be checked into source control, with a continuous integration system regularly compiling any changes into a new set of images. The portability of such container images allows us to move the application from a legacy Windows Server 2003 or 2008 environment to Windows Server 2016, helping to retire antiquated systems.</p>
+
+<p>For more information, please see the <a href="https://github.com/docker/labs/tree/master/windows/sql-server">SQL Server Lab</a> on GitHub, which heavily influenced this post.</p>
+
+<p>Thanks!</p>
+
+
+                <hr>
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2017/10/05/access-database-windows-container/" data-toggle="tooltip" data-placement="top" title="Moving an Access Database into a Windows Container with Docker">&larr; Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr>
+
+<div id="disqus_thread" class="container"></div>
+<script>
+
+    /**
+    *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+    *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+
+    var disqus_config = function () {
+        this.page.url = "http://stevenfollis.com/2017/10/17/modernizing-bakery-application-docker-visual-studio/";  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = "Modernizing the Web Matrix Bakery Application with Docker and Visual Studio"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+
+    (function () { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://stevenfollis.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the
+    <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="https://twitter.com/steven_follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://www.facebook.com/steven.follis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="https://github.com/stevenfollis">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a href="mailto:steven.follis@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; Steven Follis 2017</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="/js/jquery.min.js "></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="/js/bootstrap.min.js "></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/clean-blog.min.js "></script>
+
+
+    
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-16938500-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+</body>
+
+</html>
