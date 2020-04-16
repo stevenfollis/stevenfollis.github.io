@@ -289,7 +289,7 @@ echo "${AZ_VM_IP}"
 # Copy/paste IP address into a browser
 ```
 
-![screenshot]()
+![screenshot](/content/images/2020/04/running-nginx.png)
 
 # Wrap Up
 
