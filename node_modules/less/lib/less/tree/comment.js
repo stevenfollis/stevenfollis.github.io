@@ -1,28 +1,29 @@
-(function (tree) {
+import Node from './node';
+import getDebugInfo from './debug-info';
 
-tree.Comment = function (value, silent, index, currentFileInfo) {
-    this.value = value;
-    this.silent = !!silent;
-    this.currentFileInfo = currentFileInfo;
-};
-tree.Comment.prototype = {
-    type: "Comment",
-    genCSS: function (env, output) {
-        if (this.debugInfo) {
-            output.add(tree.debugInfo(env, this), this.currentFileInfo, this.index);
-        }
-        output.add(this.value.trim()); //TODO shouldn't need to trim, we shouldn't grab the \n
-    },
-    toCSS: tree.toCSS,
-    isSilent: function(env) {
-        var isReference = (this.currentFileInfo && this.currentFileInfo.reference && !this.isReferenced),
-            isCompressed = env.compress && !this.value.match(/^\/\*!/);
-        return this.silent || isReference || isCompressed;
-    },
-    eval: function () { return this; },
-    markReferenced: function () {
-        this.isReferenced = true;
+class Comment extends Node {
+    constructor(value, isLineComment, index, currentFileInfo) {
+        super();
+
+        this.value = value;
+        this.isLineComment = isLineComment;
+        this._index = index;
+        this._fileInfo = currentFileInfo;
+        this.allowRoot = true;
     }
-};
 
-})(require('../tree'));
+    genCSS(context, output) {
+        if (this.debugInfo) {
+            output.add(getDebugInfo(context, this), this.fileInfo(), this.getIndex());
+        }
+        output.add(this.value);
+    }
+
+    isSilent(context) {
+        const isCompressed = context.compress && this.value[2] !== '!';
+        return this.isLineComment || isCompressed;
+    }
+}
+
+Comment.prototype.type = 'Comment';
+export default Comment;

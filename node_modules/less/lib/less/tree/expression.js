@@ -1,54 +1,74 @@
-(function (tree) {
+import Node from './node';
+import Paren from './paren';
+import Comment from './comment';
+import Dimension from './dimension';
+import * as Constants from '../constants';
+const MATH = Constants.Math;
 
-tree.Expression = function (value) { this.value = value; };
-tree.Expression.prototype = {
-    type: "Expression",
-    accept: function (visitor) {
-        if (this.value) {
-            this.value = visitor.visitArray(this.value);
+class Expression extends Node {
+    constructor(value, noSpacing) {
+        super();
+
+        this.value = value;
+        this.noSpacing = noSpacing;
+        if (!value) {
+            throw new Error('Expression requires an array parameter');
         }
-    },
-    eval: function (env) {
-        var returnValue,
-            inParenthesis = this.parens && !this.parensInOp,
-            doubleParen = false;
+    }
+
+    accept(visitor) {
+        this.value = visitor.visitArray(this.value);
+    }
+
+    eval(context) {
+        let returnValue;
+        const mathOn = context.isMathOn();
+
+        const inParenthesis = this.parens && 
+            (context.math !== MATH.STRICT_LEGACY || !this.parensInOp);
+
+        let doubleParen = false;
         if (inParenthesis) {
-            env.inParenthesis();
+            context.inParenthesis();
         }
         if (this.value.length > 1) {
-            returnValue = new(tree.Expression)(this.value.map(function (e) {
-                return e.eval(env);
-            }));
+            returnValue = new Expression(this.value.map(e => {
+                if (!e.eval) {
+                    return e;
+                }
+                return e.eval(context);
+            }), this.noSpacing);
         } else if (this.value.length === 1) {
-            if (this.value[0].parens && !this.value[0].parensInOp) {
+            if (this.value[0].parens && !this.value[0].parensInOp && !context.inCalc) {
                 doubleParen = true;
             }
-            returnValue = this.value[0].eval(env);
+            returnValue = this.value[0].eval(context);
         } else {
             returnValue = this;
         }
         if (inParenthesis) {
-            env.outOfParenthesis();
+            context.outOfParenthesis();
         }
-        if (this.parens && this.parensInOp && !(env.isMathOn()) && !doubleParen) {
-            returnValue = new(tree.Paren)(returnValue);
+        if (this.parens && this.parensInOp && !mathOn && !doubleParen 
+            && (!(returnValue instanceof Dimension))) {
+            returnValue = new Paren(returnValue);
         }
         return returnValue;
-    },
-    genCSS: function (env, output) {
-        for(var i = 0; i < this.value.length; i++) {
-            this.value[i].genCSS(env, output);
-            if (i + 1 < this.value.length) {
-                output.add(" ");
+    }
+
+    genCSS(context, output) {
+        for (let i = 0; i < this.value.length; i++) {
+            this.value[i].genCSS(context, output);
+            if (!this.noSpacing && i + 1 < this.value.length) {
+                output.add(' ');
             }
         }
-    },
-    toCSS: tree.toCSS,
-    throwAwayComments: function () {
-        this.value = this.value.filter(function(v) {
-            return !(v instanceof tree.Comment);
-        });
     }
-};
 
-})(require('../tree'));
+    throwAwayComments() {
+        this.value = this.value.filter(v => !(v instanceof Comment));
+    }
+}
+
+Expression.prototype.type = 'Expression';
+export default Expression;

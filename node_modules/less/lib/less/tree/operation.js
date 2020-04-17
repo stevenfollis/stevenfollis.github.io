@@ -1,57 +1,62 @@
-(function (tree) {
+import Node from './node';
+import Color from './color';
+import Dimension from './dimension';
+import * as Constants from '../constants';
+const MATH = Constants.Math;
 
-tree.Operation = function (op, operands, isSpaced) {
-    this.op = op.trim();
-    this.operands = operands;
-    this.isSpaced = isSpaced;
-};
-tree.Operation.prototype = {
-    type: "Operation",
-    accept: function (visitor) {
-        this.operands = visitor.visit(this.operands);
-    },
-    eval: function (env) {
-        var a = this.operands[0].eval(env),
-            b = this.operands[1].eval(env);
 
-        if (env.isMathOn()) {
-            if (a instanceof tree.Dimension && b instanceof tree.Color) {
+class Operation extends Node {
+    constructor(op, operands, isSpaced) {
+        super();
+
+        this.op = op.trim();
+        this.operands = operands;
+        this.isSpaced = isSpaced;
+    }
+
+    accept(visitor) {
+        this.operands = visitor.visitArray(this.operands);
+    }
+
+    eval(context) {
+        let a = this.operands[0].eval(context);
+        let b = this.operands[1].eval(context);
+        let op;
+
+        if (context.isMathOn(this.op)) {
+            op = this.op === './' ? '/' : this.op;
+            if (a instanceof Dimension && b instanceof Color) {
                 a = a.toColor();
             }
-            if (b instanceof tree.Dimension && a instanceof tree.Color) {
+            if (b instanceof Dimension && a instanceof Color) {
                 b = b.toColor();
             }
             if (!a.operate) {
-                throw { type: "Operation",
-                        message: "Operation on an invalid type" };
+                if (a instanceof Operation && a.op === '/' && context.math === MATH.PARENS_DIVISION) {
+                    return new Operation(this.op, [a, b], this.isSpaced);
+                }
+                throw { type: 'Operation',
+                    message: 'Operation on an invalid type' };
             }
 
-            return a.operate(env, this.op, b);
+            return a.operate(context, op, b);
         } else {
-            return new(tree.Operation)(this.op, [a, b], this.isSpaced);
+            return new Operation(this.op, [a, b], this.isSpaced);
         }
-    },
-    genCSS: function (env, output) {
-        this.operands[0].genCSS(env, output);
+    }
+
+    genCSS(context, output) {
+        this.operands[0].genCSS(context, output);
         if (this.isSpaced) {
-            output.add(" ");
+            output.add(' ');
         }
         output.add(this.op);
         if (this.isSpaced) {
-            output.add(" ");
+            output.add(' ');
         }
-        this.operands[1].genCSS(env, output);
-    },
-    toCSS: tree.toCSS
-};
-
-tree.operate = function (env, op, a, b) {
-    switch (op) {
-        case '+': return a + b;
-        case '-': return a - b;
-        case '*': return a * b;
-        case '/': return a / b;
+        this.operands[1].genCSS(context, output);
     }
-};
+}
 
-})(require('../tree'));
+Operation.prototype.type = 'Operation';
+export default Operation;

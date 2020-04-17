@@ -1,3 +1,3 @@
-var less = {};
-less.env = "production";
-
+var less = {logLevel: 1,
+    errorReporting: 'console'};
+less.env = 'production';

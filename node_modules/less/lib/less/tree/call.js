@@ -1,71 +1,105 @@
-(function (tree) {
+import Node from './node';
+import Anonymous from './anonymous';
+import FunctionCaller from '../functions/function-caller';
 
 //
 // A function call node.
 //
-tree.Call = function (name, args, index, currentFileInfo) {
-    this.name = name;
-    this.args = args;
-    this.index = index;
-    this.currentFileInfo = currentFileInfo;
-};
-tree.Call.prototype = {
-    type: "Call",
-    accept: function (visitor) {
+class Call extends Node {
+    constructor(name, args, index, currentFileInfo) {
+        super();
+
+        this.name = name;
+        this.args = args;
+        this.calc = name === 'calc';
+        this._index = index;
+        this._fileInfo = currentFileInfo;
+    }
+
+    accept(visitor) {
         if (this.args) {
             this.args = visitor.visitArray(this.args);
         }
-    },
+    }
+
     //
     // When evaluating a function call,
-    // we either find the function in `tree.functions` [1],
+    // we either find the function in the functionRegistry,
     // in which case we call it, passing the  evaluated arguments,
-    // if this returns null or we cannot find the function, we 
+    // if this returns null or we cannot find the function, we
     // simply print it out as it appeared originally [2].
-    //
-    // The *functions.js* file contains the built-in functions.
     //
     // The reason why we evaluate the arguments, is in the case where
     // we try to pass a variable to a function, like: `saturate(@color)`.
     // The function should receive the value, not the variable.
     //
-    eval: function (env) {
-        var args = this.args.map(function (a) { return a.eval(env); }),
-            nameLC = this.name.toLowerCase(),
-            result, func;
+    eval(context) {
+        /**
+         * Turn off math for calc(), and switch back on for evaluating nested functions
+         */
+        const currentMathContext = context.mathOn;
+        context.mathOn = !this.calc;
+        if (this.calc || context.inCalc) {
+            context.enterCalc();
+        }
+        const args = this.args.map(a => a.eval(context));
+        if (this.calc || context.inCalc) {
+            context.exitCalc();
+        }
+        context.mathOn = currentMathContext;
 
-        if (nameLC in tree.functions) { // 1.
+        let result;
+        const funcCaller = new FunctionCaller(this.name, context, this.getIndex(), this.fileInfo());
+
+        if (funcCaller.isValid()) {
             try {
-                func = new tree.functionCall(env, this.currentFileInfo);
-                result = func[nameLC].apply(func, args);
-                if (result != null) {
-                    return result;
-                }
+                result = funcCaller.call(args);
             } catch (e) {
-                throw { type: e.type || "Runtime",
-                        message: "error evaluating function `" + this.name + "`" +
-                                 (e.message ? ': ' + e.message : ''),
-                        index: this.index, filename: this.currentFileInfo.filename };
+                throw { 
+                    type: e.type || 'Runtime',
+                    message: `error evaluating function \`${this.name}\`${e.message ? `: ${e.message}` : ''}`,
+                    index: this.getIndex(), 
+                    filename: this.fileInfo().filename,
+                    line: e.lineNumber,
+                    column: e.columnNumber
+                };
             }
+
+            if (result !== null && result !== undefined) {
+                // Results that that are not nodes are cast as Anonymous nodes
+                // Falsy values or booleans are returned as empty nodes
+                if (!(result instanceof Node)) {
+                    if (!result || result === true) {
+                        result = new Anonymous(null); 
+                    }
+                    else {
+                        result = new Anonymous(result.toString()); 
+                    }
+                    
+                }
+                result._index = this._index;
+                result._fileInfo = this._fileInfo;
+                return result;
+            }
+
         }
 
-        return new tree.Call(this.name, args, this.index, this.currentFileInfo);
-    },
+        return new Call(this.name, args, this.getIndex(), this.fileInfo());
+    }
 
-    genCSS: function (env, output) {
-        output.add(this.name + "(", this.currentFileInfo, this.index);
+    genCSS(context, output) {
+        output.add(`${this.name}(`, this.fileInfo(), this.getIndex());
 
-        for(var i = 0; i < this.args.length; i++) {
-            this.args[i].genCSS(env, output);
+        for (let i = 0; i < this.args.length; i++) {
+            this.args[i].genCSS(context, output);
             if (i + 1 < this.args.length) {
-                output.add(", ");
+                output.add(', ');
             }
         }
 
-        output.add(")");
-    },
+        output.add(')');
+    }
+}
 
-    toCSS: tree.toCSS
-};
-
-})(require('../tree'));
+Call.prototype.type = 'Call';
+export default Call;

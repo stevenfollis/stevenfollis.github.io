@@ -1,29 +1,33 @@
-(function (tree) {
+import Node from './node';
 
-tree.Assignment = function (key, val) {
-    this.key = key;
-    this.value = val;
-};
-tree.Assignment.prototype = {
-    type: "Assignment",
-    accept: function (visitor) {
+class Assignment extends Node {
+    constructor(key, val) {
+        super();
+
+        this.key = key;
+        this.value = val;
+    }
+
+    accept(visitor) {
         this.value = visitor.visit(this.value);
-    },
-    eval: function (env) {
+    }
+
+    eval(context) {
         if (this.value.eval) {
-            return new(tree.Assignment)(this.key, this.value.eval(env));
+            return new Assignment(this.key, this.value.eval(context));
         }
         return this;
-    },
-    genCSS: function (env, output) {
-        output.add(this.key + '=');
+    }
+
+    genCSS(context, output) {
+        output.add(`${this.key}=`);
         if (this.value.genCSS) {
-            this.value.genCSS(env, output);
+            this.value.genCSS(context, output);
         } else {
             output.add(this.value);
         }
-    },
-    toCSS: tree.toCSS
-};
+    }
+}
 
-})(require('../tree'));
+Assignment.prototype.type = 'Assignment';
+export default Assignment;

@@ -1,58 +1,33 @@
-(function (tree) {
+import JsEvalNode from './js-eval-node';
+import Dimension from './dimension';
+import Quoted from './quoted';
+import Anonymous from './anonymous';
 
-tree.JavaScript = function (string, index, escaped) {
-    this.escaped = escaped;
-    this.expression = string;
-    this.index = index;
-};
-tree.JavaScript.prototype = {
-    type: "JavaScript",
-    eval: function (env) {
-        var result,
-            that = this,
-            context = {};
+class JavaScript extends JsEvalNode {
+    constructor(string, escaped, index, currentFileInfo) {
+        super();
 
-        var expression = this.expression.replace(/@\{([\w-]+)\}/g, function (_, name) {
-            return tree.jsify(new(tree.Variable)('@' + name, that.index).eval(env));
-        });
+        this.escaped = escaped;
+        this.expression = string;
+        this._index = index;
+        this._fileInfo = currentFileInfo;
+    }
 
-        try {
-            expression = new(Function)('return (' + expression + ')');
-        } catch (e) {
-            throw { message: "JavaScript evaluation error: " + e.message + " from `" + expression + "`" ,
-                    index: this.index };
-        }
+    eval(context) {
+        const result = this.evaluateJavaScript(this.expression, context);
+        const type = typeof result;
 
-        var variables = env.frames[0].variables();
-        for (var k in variables) {
-            if (variables.hasOwnProperty(k)) {
-                /*jshint loopfunc:true */
-                context[k.slice(1)] = {
-                    value: variables[k].value,
-                    toJS: function () {
-                        return this.value.eval(env).toCSS();
-                    }
-                };
-            }
-        }
-
-        try {
-            result = expression.call(context);
-        } catch (e) {
-            throw { message: "JavaScript evaluation error: '" + e.name + ': ' + e.message.replace(/["]/g, "'") + "'" ,
-                    index: this.index };
-        }
-        if (typeof(result) === 'number') {
-            return new(tree.Dimension)(result);
-        } else if (typeof(result) === 'string') {
-            return new(tree.Quoted)('"' + result + '"', result, this.escaped, this.index);
+        if (type === 'number' && !isNaN(result)) {
+            return new Dimension(result);
+        } else if (type === 'string') {
+            return new Quoted(`"${result}"`, result, this.escaped, this._index);
         } else if (Array.isArray(result)) {
-            return new(tree.Anonymous)(result.join(', '));
+            return new Anonymous(result.join(', '));
         } else {
-            return new(tree.Anonymous)(result);
+            return new Anonymous(result);
         }
     }
-};
+}
 
-})(require('../tree'));
-
+JavaScript.prototype.type = 'JavaScript';
+export default JavaScript;

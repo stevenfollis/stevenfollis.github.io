@@ -1,38 +1,37 @@
-(function (tree) {
+import Node from './node';
 
-tree.Anonymous = function (value, index, currentFileInfo, mapLines, rulesetLike) {
-    this.value = value;
-    this.index = index;
-    this.mapLines = mapLines;
-    this.currentFileInfo = currentFileInfo;
-    this.rulesetLike = (typeof rulesetLike === 'undefined')? false : rulesetLike;
-};
-tree.Anonymous.prototype = {
-    type: "Anonymous",
-    eval: function () { 
-        return new tree.Anonymous(this.value, this.index, this.currentFileInfo, this.mapLines, this.rulesetLike);
-    },
-    compare: function (x) {
-        if (!x.toCSS) {
-            return -1;
-        }
-        
-        var left = this.toCSS(),
-            right = x.toCSS();
-        
-        if (left === right) {
-            return 0;
-        }
-        
-        return left < right ? -1 : 1;
-    },
-    isRulesetLike: function() {
+class Anonymous extends Node {
+    constructor(value, index, currentFileInfo, mapLines, rulesetLike, visibilityInfo) {
+        super();
+
+        this.value = value;
+        this._index = index;
+        this._fileInfo = currentFileInfo;
+        this.mapLines = mapLines;
+        this.rulesetLike = (typeof rulesetLike === 'undefined') ? false : rulesetLike;
+        this.allowRoot = true;
+        this.copyVisibilityInfo(visibilityInfo);
+    }
+
+    eval() {
+        return new Anonymous(this.value, this._index, this._fileInfo, this.mapLines, this.rulesetLike, this.visibilityInfo());
+    }
+
+    compare(other) {
+        return other.toCSS && this.toCSS() === other.toCSS() ? 0 : undefined;
+    }
+
+    isRulesetLike() {
         return this.rulesetLike;
-    },
-    genCSS: function (env, output) {
-        output.add(this.value, this.currentFileInfo, this.index, this.mapLines);
-    },
-    toCSS: tree.toCSS
-};
+    }
 
-})(require('../tree'));
+    genCSS(context, output) {
+        this.nodeVisible = Boolean(this.value);
+        if (this.nodeVisible) {
+            output.add(this.value, this._fileInfo, this._index, this.mapLines);
+        }
+    }
+}
+
+Anonymous.prototype.type = 'Anonymous';
+export default Anonymous;

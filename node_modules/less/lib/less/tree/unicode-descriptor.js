@@ -1,15 +1,13 @@
-(function (tree) {
+import Node from './node';
 
-tree.UnicodeDescriptor = function (value) {
-    this.value = value;
-};
-tree.UnicodeDescriptor.prototype = {
-    type: "UnicodeDescriptor",
-    genCSS: function (env, output) {
-        output.add(this.value);
-    },
-    toCSS: tree.toCSS,
-    eval: function () { return this; }
-};
+class UnicodeDescriptor extends Node {
+    constructor(value) {
+        super();
 
-})(require('../tree'));
+        this.value = value;
+    }
+}
+
+UnicodeDescriptor.prototype.type = 'UnicodeDescriptor';
+
+export default UnicodeDescriptor;

@@ -1,23 +1,22 @@
+import Node from './node';
 
-(function (tree) {
+class Paren extends Node {
+    constructor(node) {
+        super();
 
-tree.Paren = function (node) {
-    this.value = node;
-};
-tree.Paren.prototype = {
-    type: "Paren",
-    accept: function (visitor) {
-        this.value = visitor.visit(this.value);
-    },
-    genCSS: function (env, output) {
-        output.add('(');
-        this.value.genCSS(env, output);
-        output.add(')');
-    },
-    toCSS: tree.toCSS,
-    eval: function (env) {
-        return new(tree.Paren)(this.value.eval(env));
+        this.value = node;
     }
-};
 
-})(require('../tree'));
+    genCSS(context, output) {
+        output.add('(');
+        this.value.genCSS(context, output);
+        output.add(')');
+    }
+
+    eval(context) {
+        return new Paren(this.value.eval(context));
+    }
+}
+
+Paren.prototype.type = 'Paren';
+export default Paren;

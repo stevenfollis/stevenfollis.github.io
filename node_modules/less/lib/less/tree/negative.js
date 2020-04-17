@@ -1,24 +1,26 @@
-(function (tree) {
+import Node from './node';
+import Operation from './operation';
+import Dimension from './dimension';
 
-tree.Negative = function (node) {
-    this.value = node;
-};
-tree.Negative.prototype = {
-    type: "Negative",
-    accept: function (visitor) {
-        this.value = visitor.visit(this.value);
-    },
-    genCSS: function (env, output) {
-        output.add('-');
-        this.value.genCSS(env, output);
-    },
-    toCSS: tree.toCSS,
-    eval: function (env) {
-        if (env.isMathOn()) {
-            return (new(tree.Operation)('*', [new(tree.Dimension)(-1), this.value])).eval(env);
-        }
-        return new(tree.Negative)(this.value.eval(env));
+class Negative extends Node {
+    constructor(node) {
+        super();
+
+        this.value = node;
     }
-};
 
-})(require('../tree'));
+    genCSS(context, output) {
+        output.add('-');
+        this.value.genCSS(context, output);
+    }
+
+    eval(context) {
+        if (context.isMathOn()) {
+            return (new Operation('*', [new Dimension(-1), this.value])).eval(context);
+        }
+        return new Negative(this.value.eval(context));
+    }
+}
+
+Negative.prototype.type = 'Negative';
+export default Negative;
