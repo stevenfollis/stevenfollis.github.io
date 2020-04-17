@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Creating a minimal OS for containers with LinuxKit and Azure
-date: 2020-04-16 00:00:00.000000000 -06:00
+date: 2020-04-17 00:00:00.000000000 -06:00
 ---
 
 Sitting in the room at DockerCon Austin 3 years ago to the day, the [LinuxKit](https://github.com/linuxkit/linuxkit) project was introduced to the world. LinuxKit is an easy-to-use tool for building custom, immutable Linux distributions optimized for container-based workloads and security. 
